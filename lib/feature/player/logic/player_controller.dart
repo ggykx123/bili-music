@@ -588,11 +588,6 @@ class PlayerController extends Notifier<PlayerState>
 
   @override
   Future<void> skipToPrevious() async {
-    if (state.position > const Duration(seconds: 3)) {
-      await seek(Duration.zero);
-      return;
-    }
-
     final int? targetIndex = _queueManager.resolvePreviousIndex(
       queue: state.queue,
       currentIndex: state.currentQueueIndex,
@@ -812,7 +807,11 @@ class PlayerController extends Notifier<PlayerState>
         entry: entry,
         durationOverride: loadedDuration,
       );
-      _queueManager.recordVisit(mode: state.queueMode, index: queueIndex);
+      _queueManager.recordVisit(
+        queue: state.queue,
+        mode: state.queueMode,
+        index: queueIndex,
+      );
       if (autoplay) {
         unawaited(
           ref
@@ -913,14 +912,12 @@ class PlayerController extends Notifier<PlayerState>
       return null;
     }
 
-    for (int offset = 1; offset <= queue.length; offset += 1) {
-      final int candidateIndex = (failedIndex + offset) % queue.length;
-      if (!skippedStableIds.contains(queue[candidateIndex].stableId)) {
-        return candidateIndex;
-      }
-    }
-
-    return null;
+    return _queueManager.resolveNextAvailableIndex(
+      queue: queue,
+      failedIndex: failedIndex,
+      mode: state.queueMode,
+      skippedStableIds: skippedStableIds,
+    );
   }
 
   Future<bool> _failCurrentLoad(
@@ -1174,8 +1171,7 @@ class PlayerController extends Notifier<PlayerState>
     _audioHandler.updatePlaybackSnapshot(
       isPlaying: state.isPlaying,
       isBuffering: state.isBuffering,
-      hasPrevious:
-          state.hasPrevious || state.position > const Duration(seconds: 3),
+      hasPrevious: state.hasPrevious,
       hasNext: state.queueMode == PlayerQueueMode.singleRepeat || state.hasNext,
       position: state.position,
       bufferedPosition: state.bufferedPosition,
