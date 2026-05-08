@@ -7,13 +7,6 @@ assignees: AprDeci
 
 ---
 
----
-name: 🐛 Bug 报告
-about: 提交 Bug
-title: '[Bug] '
-labels: bug
----
-
 ### 1. Bug 描述
 <!-- 简单说说出了什么问题 -->
 
