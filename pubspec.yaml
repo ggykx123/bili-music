@@ -133,7 +133,7 @@ flutter:
   fonts:
     - family: BmIcons
       fonts:
-        - asset: assets/fonts/BmIcons.ttf 
+        - asset: assets/fonts/BmIcons.otf 
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -183,7 +183,7 @@ flutter_launcher_icons:
 # dart run icon_font_generator:generator
 icon_font:
   input_svg_dir: "assets/icons/svg"
-  output_font_file: "assets/fonts/BmIcons.ttf"
+  output_font_file: "assets/fonts/BmIcons.otf"
   
   output_class_file: "lib/common/bm_icons.dart"
   class_name: "BmIcons"
