@@ -79,7 +79,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final PlayerState state = ref.watch(playerControllerProvider);
+    final PlayerState state = ref.watch(
+      playerControllerProvider.select(_withoutPlaybackPosition),
+    );
     final favoritesState = ref.watch(favoritesControllerProvider);
     final PlayerController playerController = ref.read(
       playerControllerProvider.notifier,
@@ -161,7 +163,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                                     : () => _toggleFavorite(item),
                                 onSeek: (double value) {
                                   final int totalMs =
-                                      (state.duration ?? Duration.zero)
+                                      (ref
+                                                  .read(
+                                                    playerControllerProvider,
+                                                  )
+                                                  .duration ??
+                                              Duration.zero)
                                           .inMilliseconds;
                                   final Duration position = Duration(
                                     milliseconds: (totalMs * value).round(),
@@ -231,6 +238,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     );
     await context.push('/comments', extra: target);
   }
+}
+
+PlayerState _withoutPlaybackPosition(PlayerState state) {
+  if (state.position == Duration.zero) {
+    return state;
+  }
+  return state.copyWith(position: Duration.zero);
 }
 
 Future<void> _openInBrowser(PlayableItem item) async {

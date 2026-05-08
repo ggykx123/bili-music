@@ -1,6 +1,7 @@
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
+import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_panel.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_tools.dart';
@@ -27,8 +28,8 @@ class PlayerLyricPage extends ConsumerWidget {
       playerLyricsControllerProvider,
     );
 
-    final Widget content = PlayerLyricPanel(
-      state: state,
+    final Widget content = _PlayerLyricPanelHost(
+      baseState: state,
       item: item,
       isActive: isActive,
       onSeek: onSeek,
@@ -51,6 +52,37 @@ class PlayerLyricPage extends ConsumerWidget {
           onOffset: () => showLyricOffsetSheet(context),
         ),
       ],
+    );
+  }
+}
+
+class _PlayerLyricPanelHost extends ConsumerWidget {
+  const _PlayerLyricPanelHost({
+    required this.baseState,
+    required this.item,
+    required this.isActive,
+    required this.onSeek,
+  });
+
+  final PlayerState baseState;
+  final PlayableItem? item;
+  final bool isActive;
+  final ValueChanged<Duration> onSeek;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (:position, :duration) = ref.watch(
+      playerControllerProvider.select(
+        (PlayerState state) =>
+            (position: state.position, duration: state.duration),
+      ),
+    );
+
+    return PlayerLyricPanel(
+      state: baseState.copyWith(position: position, duration: duration),
+      item: item,
+      isActive: isActive,
+      onSeek: onSeek,
     );
   }
 }

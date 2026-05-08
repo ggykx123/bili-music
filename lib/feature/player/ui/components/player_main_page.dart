@@ -70,6 +70,85 @@ class PlayerMainPage extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        _RepaintSection(
+          child: _PlayerHeroAndTitle(
+            artworkSize: artworkSize,
+            item: item,
+            state: state,
+            isFavorite: isFavorite,
+            onlineAudienceLabel: onlineAudienceLabel,
+            onFavoriteToggle: onFavoriteToggle,
+          ),
+        ),
+        const Spacer(),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _RepaintSection(
+              child: _PlayerStatusAndTools(
+                state: state,
+                item: item,
+                commentCount: commentCount,
+                canOpenPartSelector: canOpenPartSelector,
+                onPartTap: onPartTap,
+                onOpenCollectionSheet: onOpenCollectionSheet,
+                onOpenComments: onOpenComments,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _RepaintSection(child: _PlayerProgressHost(onChanged: onSeek)),
+            const SizedBox(height: 10),
+            _RepaintSection(
+              child: PlayerTransportControls(
+                state: state,
+                onToggleQueueMode: onToggleQueueMode,
+                onBackward: onBackward,
+                onTogglePlayback: onTogglePlayback,
+                onForward: onForward,
+                onOpenQueue: onOpenQueue,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: mediaQuery.padding.bottom > 0 ? 8 : 18),
+      ],
+    );
+  }
+}
+
+class _RepaintSection extends StatelessWidget {
+  const _RepaintSection({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(child: child);
+  }
+}
+
+class _PlayerHeroAndTitle extends StatelessWidget {
+  const _PlayerHeroAndTitle({
+    required this.artworkSize,
+    required this.item,
+    required this.state,
+    required this.isFavorite,
+    required this.onlineAudienceLabel,
+    required this.onFavoriteToggle,
+  });
+
+  final double artworkSize;
+  final PlayableItem? item;
+  final PlayerState state;
+  final bool isFavorite;
+  final String? onlineAudienceLabel;
+  final VoidCallback? onFavoriteToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
         const SizedBox(height: 12),
         Hero(
           tag: "artwork",
@@ -93,41 +172,76 @@ class PlayerMainPage extends ConsumerWidget {
         ),
         if (onlineAudienceLabel != null) ...<Widget>[
           const SizedBox(height: 12),
-          Row(children: <Widget>[PlayerBadge(label: onlineAudienceLabel)]),
+          Row(children: <Widget>[PlayerBadge(label: onlineAudienceLabel!)]),
         ],
-        const Spacer(),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            PlayerPlaybackStatusChip(state: state),
-            if (state.statusHint != null) const SizedBox(height: 12),
-            _PlayerToolBar(
-              state: state,
-              hasItem: item != null,
-              item: item,
-              commentCount: commentCount,
-              canOpenPartSelector: canOpenPartSelector,
-              onPartTap: onPartTap,
-              onOpenCollectionSheet: onOpenCollectionSheet,
-              onOpenComments: onOpenComments,
-            ),
-            const SizedBox(height: 10),
-            RepaintBoundary(
-              child: PlayerProgressSection(state: state, onChanged: onSeek),
-            ),
-            const SizedBox(height: 10),
-            PlayerTransportControls(
-              state: state,
-              onToggleQueueMode: onToggleQueueMode,
-              onBackward: onBackward,
-              onTogglePlayback: onTogglePlayback,
-              onForward: onForward,
-              onOpenQueue: onOpenQueue,
-            ),
-          ],
-        ),
-        SizedBox(height: mediaQuery.padding.bottom > 0 ? 8 : 18),
       ],
+    );
+  }
+}
+
+class _PlayerStatusAndTools extends StatelessWidget {
+  const _PlayerStatusAndTools({
+    required this.state,
+    required this.item,
+    required this.commentCount,
+    required this.canOpenPartSelector,
+    required this.onPartTap,
+    required this.onOpenCollectionSheet,
+    required this.onOpenComments,
+  });
+
+  final PlayerState state;
+  final PlayableItem? item;
+  final int? commentCount;
+  final bool canOpenPartSelector;
+  final VoidCallback? onPartTap;
+  final VoidCallback? onOpenCollectionSheet;
+  final VoidCallback? onOpenComments;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        PlayerPlaybackStatusChip(state: state),
+        if (state.statusHint != null) const SizedBox(height: 12),
+        _PlayerToolBar(
+          state: state,
+          hasItem: item != null,
+          item: item,
+          commentCount: commentCount,
+          canOpenPartSelector: canOpenPartSelector,
+          onPartTap: onPartTap,
+          onOpenCollectionSheet: onOpenCollectionSheet,
+          onOpenComments: onOpenComments,
+        ),
+      ],
+    );
+  }
+}
+
+class _PlayerProgressHost extends ConsumerWidget {
+  const _PlayerProgressHost({required this.onChanged});
+
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (:position, :duration, :isReady) = ref.watch(
+      playerControllerProvider.select(
+        (PlayerState state) => (
+          position: state.position,
+          duration: state.duration,
+          isReady: state.isReady,
+        ),
+      ),
+    );
+
+    return PlayerProgressSection(
+      position: position,
+      duration: duration,
+      isReady: isReady,
+      onChanged: onChanged,
     );
   }
 }

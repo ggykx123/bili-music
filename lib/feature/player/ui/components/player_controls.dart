@@ -8,11 +8,15 @@ import 'package:hugeicons/hugeicons.dart';
 class PlayerProgressSection extends StatelessWidget {
   const PlayerProgressSection({
     super.key,
-    required this.state,
+    required this.position,
+    required this.duration,
+    required this.isReady,
     required this.onChanged,
   });
 
-  final PlayerState state;
+  final Duration position;
+  final Duration? duration;
+  final bool isReady;
   final ValueChanged<double> onChanged;
 
   @override
@@ -20,10 +24,10 @@ class PlayerProgressSection extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final neutralColor = neutralColorOf(context);
     final ColorScheme colorScheme = theme.colorScheme;
-    final Duration total = state.duration ?? Duration.zero;
+    final Duration total = duration ?? Duration.zero;
     final double progress = total.inMilliseconds <= 0
         ? 0
-        : state.position.inMilliseconds / total.inMilliseconds;
+        : position.inMilliseconds / total.inMilliseconds;
 
     return Column(
       children: <Widget>[
@@ -39,7 +43,7 @@ class PlayerProgressSection extends StatelessWidget {
           ),
           child: Slider(
             value: progress.clamp(0.0, 1.0),
-            onChanged: state.isReady ? onChanged : null,
+            onChanged: isReady ? onChanged : null,
           ),
         ),
         Padding(
@@ -47,7 +51,7 @@ class PlayerProgressSection extends StatelessWidget {
           child: Row(
             children: <Widget>[
               Text(
-                formatPlayerDuration(state.position),
+                formatPlayerDuration(position),
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w700,
