@@ -52,22 +52,20 @@ class _BadgedIconButtonState extends State<BadgedIconButton> {
     final Color iconColor = _resolveIconColor(context);
 
     final Widget button = MouseRegion(
-      cursor:
-          widget.cursor ??
-          (_isEnabled ? SystemMouseCursors.click : MouseCursor.defer),
+      cursor: _isEnabled
+          ? widget.cursor ?? SystemMouseCursors.click
+          : MouseCursor.defer,
       onEnter: _isEnabled ? (_) => setState(() => _isHovered = true) : null,
       onExit: _isEnabled ? (_) => setState(() => _isHovered = false) : null,
       child: Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
-          SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: InkResponse(
-              onTap: widget.onPressed,
-              radius: widget.tapRadius,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
+          GestureDetector(
+            onTap: widget.onPressed,
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
               child: Center(
                 child: SizedBox(
                   width: widget.iconSize,
