@@ -452,7 +452,7 @@ class _ActionSection extends StatelessWidget {
           ),
           badgeIcon: const Icon(BmIcons.partListWithBadge, size: 26),
           badge: formatPartBadge(item),
-          badgeOffset: const Offset(-10, -2),
+          badgeOffset: const Offset(-4, -2),
           onPressed: onOpenParts,
           tooltip: '选择分 P',
         ),
