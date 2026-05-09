@@ -15,7 +15,7 @@ import 'package:bilimusic/feature/player/ui/components/desktop/quality_attach.da
 import 'package:bilimusic/feature/player/ui/components/desktop/queue_mode_attach.dart';
 import 'package:bilimusic/feature/player/ui/components/player_part_selector.dart';
 import 'package:bilimusic/feature/player/ui/components/player_queue_sheet.dart';
-import 'package:bilimusic/feature/player/ui/components/player_ui_helpers.dart';
+import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
 import 'package:bilimusic/router/player_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

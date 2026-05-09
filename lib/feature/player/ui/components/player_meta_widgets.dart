@@ -1,6 +1,6 @@
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
-import 'package:bilimusic/feature/player/ui/components/player_ui_helpers.dart';
+import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
 import 'package:flutter/material.dart';
 
 class PlayerMetaSheet extends StatelessWidget {

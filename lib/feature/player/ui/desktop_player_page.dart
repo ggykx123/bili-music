@@ -23,7 +23,7 @@ import 'package:bilimusic/feature/player/ui/components/player_lyric_panel.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_tools.dart';
 import 'package:bilimusic/feature/player/ui/components/player_part_selector.dart';
 import 'package:bilimusic/feature/player/ui/components/player_queue_sheet.dart';
-import 'package:bilimusic/feature/player/ui/components/player_ui_helpers.dart';
+import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
 import 'package:bilimusic/router/player_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
