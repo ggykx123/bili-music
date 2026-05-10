@@ -177,113 +177,142 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             Expanded(
               child: Stack(
                 children: <Widget>[
-                  ListView(
+                  CustomScrollView(
                     controller: _scrollController,
-                    padding: EdgeInsets.fromLTRB(16, isDesktop ? 16 : 0, 16, 0),
-                    children: <Widget>[
+                    slivers: <Widget>[
                       if (!isDesktop &&
                           !isShowingSuggestions &&
                           state.recentKeywords.isNotEmpty &&
-                          state.submittedQuery == null) ...<Widget>[
-                        Row(
-                          children: <Widget>[
-                            Text(
-                              '搜索历史',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
+                          state.submittedQuery == null)
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            isDesktop ? 16 : 0,
+                            16,
+                            0,
+                          ),
+                          sliver: SliverList.list(
+                            children: <Widget>[
+                              Row(
+                                children: <Widget>[
+                                  Text(
+                                    '搜索历史',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: controller.clearHistory,
+                                    child: const Text('清空'),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const Spacer(),
-                            TextButton(
-                              onPressed: controller.clearHistory,
-                              child: const Text('清空'),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: state.recentKeywords.map((
+                                  String item,
+                                ) {
+                                  return ActionChip(
+                                    label: Text(item),
+                                    backgroundColor:
+                                        colorScheme.surfaceContainerLowest,
+                                    side: BorderSide(
+                                      color: colorScheme.outlineVariant,
+                                    ),
+                                    labelStyle: theme.textTheme.bodyMedium
+                                        ?.copyWith(
+                                          color: colorScheme.onSurface,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                    onPressed: () {
+                                      _selectKeyword(controller, item);
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: state.recentKeywords.map((String item) {
-                            return ActionChip(
-                              label: Text(item),
-                              backgroundColor:
-                                  colorScheme.surfaceContainerLowest,
-                              side: BorderSide(
-                                color: colorScheme.outlineVariant,
-                              ),
-                              labelStyle: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              onPressed: () {
-                                _selectKeyword(controller, item);
-                              },
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
                       if (state.submittedQuery != null &&
                           state.submittedQuery!.isNotEmpty)
-                        Row(
-                          children: <Widget>[
-                            Text(
-                              '搜索结果',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            PopupMenuButton<SearchSort>(
-                              tooltip: '切换排序',
-                              onSelected: (SearchSort sort) async {
-                                await controller.changeSort(sort);
-                                if (!mounted || !_scrollController.hasClients) {
-                                  return;
-                                }
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            isDesktop ? 16 : 0,
+                            16,
+                            0,
+                          ),
+                          sliver: SliverList.list(
+                            children: <Widget>[
+                              Row(
+                                children: <Widget>[
+                                  Text(
+                                    '搜索结果',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  PopupMenuButton<SearchSort>(
+                                    tooltip: '切换排序',
+                                    onSelected: (SearchSort sort) async {
+                                      await controller.changeSort(sort);
+                                      if (!mounted ||
+                                          !_scrollController.hasClients) {
+                                        return;
+                                      }
 
-                                await _scrollController.animateTo(
-                                  0,
-                                  duration: const Duration(milliseconds: 250),
-                                  curve: Curves.easeOut,
-                                );
-                              },
-                              itemBuilder: (BuildContext context) {
-                                return SearchSort.values.map((SearchSort sort) {
-                                  return PopupMenuItem<SearchSort>(
-                                    value: sort,
+                                      await _scrollController.animateTo(
+                                        0,
+                                        duration: const Duration(
+                                          milliseconds: 250,
+                                        ),
+                                        curve: Curves.easeOut,
+                                      );
+                                    },
+                                    itemBuilder: (BuildContext context) {
+                                      return SearchSort.values.map((
+                                        SearchSort sort,
+                                      ) {
+                                        return PopupMenuItem<SearchSort>(
+                                          value: sort,
+                                          child: Text(
+                                            sort.label,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: state.sort == sort
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                ),
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
                                     child: Text(
-                                      sort.label,
+                                      state.sort.label,
                                       style: theme.textTheme.bodyMedium
                                           ?.copyWith(
-                                            fontWeight: state.sort == sort
-                                                ? FontWeight.w700
-                                                : FontWeight.w500,
+                                            color: colorScheme.primary,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                     ),
-                                  );
-                                }).toList();
-                              },
-                              child: Text(
-                                state.sort.label,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${state.results.length} 条',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${state.results.length} 条',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                            ],
+                          ),
                         ),
-                      const SizedBox(height: 12),
                       _SearchResultSection(
                         submittedQuery: state.submittedQuery,
                         results: state.results,
@@ -324,7 +353,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               .enqueue(<PlayableItem>[resolvedItem]);
                         },
                       ),
-                      const BottomPageSpacer.overlay(),
+                      const SliverToBoxAdapter(
+                        child: BottomPageSpacer.overlay(),
+                      ),
                     ],
                   ),
                   if (isShowingSuggestions)
@@ -484,116 +515,136 @@ class _SearchResultSection extends StatelessWidget {
     final bool hasQuery = submittedQuery != null && submittedQuery!.isNotEmpty;
 
     if (!hasQuery) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(24)),
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              width: 56,
-              height: 56,
-              child: Icon(
-                Icons.search_rounded,
-                color: colorScheme.primary,
-                size: 28,
-              ),
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(24)),
+            child: Column(
+              children: <Widget>[
+                SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Icon(
+                    Icons.search_rounded,
+                    color: colorScheme.primary,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '输入关键词开始搜索',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              '输入关键词开始搜索',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+          ),
         ),
       );
     }
 
     if (isLoading) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        child: Column(
-          children: <Widget>[
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(strokeWidth: 2.6),
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: Column(
+              children: <Widget>[
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2.6),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '正在搜索 "$submittedQuery"',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              '正在搜索 "$submittedQuery"',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
 
     if (errorMessage != null && errorMessage!.isNotEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        child: Column(
-          children: <Widget>[
-            Icon(
-              Icons.error_outline_rounded,
-              size: 30,
-              color: colorScheme.error,
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: Column(
+              children: <Widget>[
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 30,
+                  color: colorScheme.error,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '搜索失败',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              '搜索失败',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage!,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
 
     if (results.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        child: Column(
-          children: <Widget>[
-            Icon(
-              Icons.search_off_rounded,
-              size: 30,
-              color: colorScheme.onSurfaceVariant,
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: Column(
+              children: <Widget>[
+                Icon(
+                  Icons.search_off_rounded,
+                  size: 30,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '没有找到相关视频',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '试试更换关键词，或者确认当前登录态和 Cookie 是否可用。',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              '没有找到相关视频',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '试试更换关键词，或者确认当前登录态和 Cookie 是否可用。',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
@@ -602,9 +653,21 @@ class _SearchResultSection extends StatelessWidget {
       builder: (BuildContext context, WidgetRef ref, Widget? child) {
         final favoritesState = ref.watch(favoritesControllerProvider);
 
-        return Column(
-          children: <Widget>[
-            ...results.map((SearchResultItem item) {
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverList.builder(
+            itemCount: results.length + 1,
+            itemBuilder: (BuildContext context, int index) {
+              if (index == results.length) {
+                return _SearchResultFooter(
+                  isLoadingMore: isLoadingMore,
+                  hasMore: hasMore,
+                  errorMessage: loadMoreErrorMessage,
+                  onRetry: onRetryLoadMore,
+                );
+              }
+
+              final SearchResultItem item = results[index];
               final playableItem = item.toPlayableItem();
               final bool isFavorite = favoritesState.isLikedVideoPage(
                 aid: item.aid,
@@ -619,7 +682,6 @@ class _SearchResultSection extends StatelessWidget {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 1),
                     padding: const EdgeInsets.symmetric(vertical: 8),
-
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
@@ -824,14 +886,8 @@ class _SearchResultSection extends StatelessWidget {
                   ),
                 ),
               );
-            }),
-            _SearchResultFooter(
-              isLoadingMore: isLoadingMore,
-              hasMore: hasMore,
-              errorMessage: loadMoreErrorMessage,
-              onRetry: onRetryLoadMore,
-            ),
-          ],
+            },
+          ),
         );
       },
     );

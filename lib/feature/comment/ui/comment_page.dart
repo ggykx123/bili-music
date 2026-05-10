@@ -66,75 +66,139 @@ class _CommentPageState extends ConsumerState<CommentPage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: controller.refresh,
-          child: ListView(
+          child: CustomScrollView(
             controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: <Widget>[
-              _CommentHeader(target: widget.target),
-              const SizedBox(height: 36),
+            slivers: <Widget>[
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                sliver: SliverList.list(
+                  children: <Widget>[
+                    _CommentHeader(target: widget.target),
+                    const SizedBox(height: 36),
+                  ],
+                ),
+              ),
               if (state.isLoading &&
                   state.items.isEmpty &&
                   state.hotItems.isEmpty &&
                   state.topItem == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Center(child: CircularProgressIndicator()),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 )
               else if (state.errorMessage != null &&
                   state.items.isEmpty &&
                   state.hotItems.isEmpty &&
                   state.topItem == null)
-                _CommentErrorCard(
-                  message: state.errorMessage!,
-                  onRetry: controller.loadInitial,
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverToBoxAdapter(
+                    child: _CommentErrorCard(
+                      message: state.errorMessage!,
+                      onRetry: controller.loadInitial,
+                    ),
+                  ),
                 )
               else ...<Widget>[
-                if (state.topItem != null) ...<Widget>[
-                  _CommentSectionTitle(title: '置顶评论'),
-                  const SizedBox(height: 8),
-                  CommentCard(item: state.topItem!),
-                  const SizedBox(height: 16),
-                ],
-                if (state.hotItems.isNotEmpty) ...<Widget>[
-                  _CommentSectionTitle(title: '热评'),
-                  const SizedBox(height: 8),
-                  ..._buildCommentCards(state.hotItems),
-                  const SizedBox(height: 16),
-                ],
-                _CommentSectionHeader(
-                  title: '全部评论',
-                  state: state,
-                  controller: controller,
-                ),
-                const SizedBox(height: 8),
-                if (state.items.isEmpty)
-                  _CommentEmptyCard(isReadOnly: state.isReadOnly)
-                else
-                  ..._buildCommentCards(state.items),
-                if (state.loadMoreErrorMessage != null) ...<Widget>[
-                  const SizedBox(height: 12),
-                  _CommentLoadMoreError(
-                    message: state.loadMoreErrorMessage!,
-                    onRetry: controller.loadNextPage,
+                if (state.topItem != null)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList.list(
+                      children: <Widget>[
+                        _CommentSectionTitle(title: '置顶评论'),
+                        const SizedBox(height: 8),
+                        CommentCard(item: state.topItem!),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
+                if (state.hotItems.isNotEmpty) ...<Widget>[
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList.list(
+                      children: <Widget>[
+                        _CommentSectionTitle(title: '热评'),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList.builder(
+                      itemCount: state.hotItems.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return _buildCommentCard(state.hotItems[index]);
+                      },
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 ],
-                if (state.isLoadingMore) ...<Widget>[
-                  const SizedBox(height: 16),
-                  const Center(child: CircularProgressIndicator()),
-                ],
-                if (!state.isLoadingMore && state.items.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Text(
-                      state.hasMore ? '继续上滑加载更多' : '没有更多评论了',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList.list(
+                    children: <Widget>[
+                      _CommentSectionHeader(
+                        title: '全部评论',
+                        state: state,
+                        controller: controller,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+                if (state.items.isEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverToBoxAdapter(
+                      child: _CommentEmptyCard(isReadOnly: state.isReadOnly),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList.builder(
+                      itemCount: state.items.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return _buildCommentCard(state.items[index]);
+                      },
+                    ),
+                  ),
+                if (state.loadMoreErrorMessage != null)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _CommentLoadMoreError(
+                        message: state.loadMoreErrorMessage!,
+                        onRetry: controller.loadNextPage,
                       ),
                     ),
                   ),
-                ],
+                if (state.isLoadingMore)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                if (!state.isLoadingMore && state.items.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Center(
+                        child: Text(
+                          state.hasMore ? '继续上滑加载更多' : '没有更多评论了',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
         ),
@@ -142,27 +206,23 @@ class _CommentPageState extends ConsumerState<CommentPage> {
     );
   }
 
-  List<Widget> _buildCommentCards(List<CommentItem> items) {
-    return items
-        .map(
-          (CommentItem item) => Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.only(bottom: 12),
-            child: CommentCard(
-              item: item,
-              showReplyPreview: true,
-              showReplyEntry: true,
-              onOpenReplies: item.replyCount > 0
-                  ? () => showCommentReplySheet(
-                      context: context,
-                      target: widget.target,
-                      rootItem: item,
-                    )
-                  : null,
-            ),
-          ),
-        )
-        .toList();
+  Widget _buildCommentCard(CommentItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: CommentCard(
+        item: item,
+        showReplyPreview: true,
+        showReplyEntry: true,
+        onOpenReplies: item.replyCount > 0
+            ? () => showCommentReplySheet(
+                context: context,
+                target: widget.target,
+                rootItem: item,
+              )
+            : null,
+      ),
+    );
   }
 }
 

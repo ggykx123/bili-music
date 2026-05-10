@@ -112,77 +112,101 @@ class _CommentReplySheetState extends ConsumerState<_CommentReplySheet> {
               ),
             ),
             Expanded(
-              child: ListView(
+              child: CustomScrollView(
                 controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                children: <Widget>[
-                  CommentCard(
-                    item: state.rootItem,
-                    showReplyPreview: false,
-                    showReplyEntry: false,
-                    showTopBadge: false,
-                  ),
-                  const SizedBox(height: 20),
-                  Divider(
-                    height: 1,
-                    thickness: 0.3,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 20),
-                  if (state.isLoading && state.items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (state.errorMessage != null && state.items.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Text(state.errorMessage!),
-                      ),
-                    )
-                  else ...<Widget>[
-                    ...state.items.map(
-                      (CommentItem item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: CommentCard(
-                          item: item,
+                slivers: <Widget>[
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    sliver: SliverList.list(
+                      children: <Widget>[
+                        CommentCard(
+                          item: state.rootItem,
                           showReplyPreview: false,
                           showReplyEntry: false,
                           showTopBadge: false,
-                          showHiddenBadge: false,
                         ),
+                        const SizedBox(height: 20),
+                        Divider(
+                          height: 1,
+                          thickness: 0.3,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                  if (state.isLoading && state.items.isEmpty)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    )
+                  else if (state.errorMessage != null && state.items.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          child: Text(state.errorMessage!),
+                        ),
+                      ),
+                    )
+                  else ...<Widget>[
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList.builder(
+                        itemCount: state.items.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final CommentItem item = state.items[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: CommentCard(
+                              item: item,
+                              showReplyPreview: false,
+                              showReplyEntry: false,
+                              showTopBadge: false,
+                              showHiddenBadge: false,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     if (state.loadMoreErrorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          state.loadMoreErrorMessage!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.error,
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: Text(
+                            state.loadMoreErrorMessage!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.error,
+                            ),
                           ),
                         ),
                       ),
                     if (state.isLoadingMore)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 12),
-                        child: Center(child: CircularProgressIndicator()),
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 12),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
                       ),
                     if (!state.isLoadingMore && state.items.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
+                      SliverToBoxAdapter(
                         child: Center(
-                          child: Text(
-                            state.hasMore ? '继续上滑加载更多' : '没有更多回复了',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              state.hasMore ? '继续上滑加载更多' : '没有更多回复了',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
                       ),
                   ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 ],
               ),
             ),
