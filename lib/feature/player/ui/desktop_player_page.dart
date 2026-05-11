@@ -1,4 +1,3 @@
-import 'package:adaptive_palette/adaptive_palette.dart';
 import 'package:bilimusic/common/bm_icons.dart';
 import 'package:bilimusic/common/components/badged_icon_button.dart';
 import 'package:bilimusic/common/components/bar_icon_button.dart';
@@ -15,6 +14,7 @@ import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
+import 'package:bilimusic/feature/player/logic/player_cover_color_provider.dart';
 import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:bilimusic/feature/player/ui/components/desktop/quality_attach.dart';
 import 'package:bilimusic/feature/player/ui/components/desktop/queue_mode_attach.dart';
@@ -91,6 +91,9 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
         ? ref.watch(favoritesControllerProvider).isLiked(item)
         : false;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final Color? coverColor = ref
+        .watch(playerCoverColorProvider(item?.coverUrl))
+        .maybeWhen(data: (Color? color) => color, orElse: () => null);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -99,7 +102,7 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
           children: <Widget>[
             Positioned.fill(
               child: PlayerDynamicBackdrop(
-                coverUrl: item?.coverUrl,
+                baseColor: coverColor,
                 variant: PlayerBackdropVariant.desktop,
               ),
             ),

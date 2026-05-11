@@ -1,155 +1,26 @@
-import 'package:adaptive_palette/adaptive_palette.dart';
-import 'package:bilimusic/core/cache/cache_util.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 enum PlayerBackdropVariant { mobile, desktop }
 
-class PlayerDynamicBackdrop extends StatefulWidget {
+class PlayerDynamicBackdrop extends StatelessWidget {
   const PlayerDynamicBackdrop({
     super.key,
-    required this.coverUrl,
+    required this.baseColor,
     this.variant = PlayerBackdropVariant.mobile,
   });
 
-  final String? coverUrl;
+  final Color? baseColor;
   final PlayerBackdropVariant variant;
 
-  @override
-  State<PlayerDynamicBackdrop> createState() => _PlayerDynamicBackdropState();
-}
-
-class _PlayerDynamicBackdropState extends State<PlayerDynamicBackdrop> {
-  static const Duration _extractDelay = Duration(milliseconds: 520);
   static const Duration _colorTransitionDuration = Duration(milliseconds: 1000);
-  static const int _paletteCacheExtent = 96;
-  static const int _maxColorCacheEntries = 160;
-  static final Map<String, Color> _colorCache = <String, Color>{};
-
-  String? _loadedUrl;
-  Color? _baseColor;
-  int _loadGeneration = 0;
-  Brightness? _scheduledBrightness;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final Brightness brightness = Theme.of(context).brightness;
-    if (_scheduledBrightness != brightness) {
-      _scheduledBrightness = brightness;
-      _scheduleColorLoad(brightness);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant PlayerDynamicBackdrop oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.coverUrl?.trim() != widget.coverUrl?.trim()) {
-      _scheduleColorLoad(_scheduledBrightness ?? Theme.of(context).brightness);
-    }
-  }
-
-  void _scheduleColorLoad(Brightness brightness) {
-    final int generation = ++_loadGeneration;
-    final String resolvedUrl = widget.coverUrl?.trim() ?? '';
-    _loadedUrl = resolvedUrl;
-
-    final Color? cachedColor = _colorCache[resolvedUrl];
-    if (cachedColor != null) {
-      _setBaseColor(cachedColor);
-      return;
-    }
-
-    if (resolvedUrl.isEmpty) {
-      _setBaseColor(null);
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future<void>.delayed(_extractDelay);
-      if (!mounted || generation != _loadGeneration) {
-        return;
-      }
-      await _loadColor(resolvedUrl, generation, brightness);
-    });
-  }
-
-  Future<void> _loadColor(
-    String resolvedUrl,
-    int generation,
-    Brightness brightness,
-  ) async {
-    final Color? cachedColor = _colorCache[resolvedUrl];
-    if (cachedColor != null) {
-      _setBaseColor(cachedColor);
-      return;
-    }
-
-    try {
-      // final ColorScheme imageColorScheme = await ColorScheme.fromImageProvider(
-      //   provider: CachedNetworkImageProvider(
-      //     resolvedUrl,
-      //     cacheManager: CacheUtil.imageCacheManager,
-      //   ),
-      //   brightness: brightness,
-      // );
-      final imageColorScheme = await FluidPaletteExtractor.extractColors(
-        CachedNetworkImageProvider(
-          resolvedUrl,
-          cacheManager: CacheUtil.imageCacheManager,
-          maxWidth: _paletteCacheExtent,
-          maxHeight: _paletteCacheExtent,
-        ),
-        count: 5, // 1–10, default 5
-      );
-      final Color extractedColor = imageColorScheme[0];
-      _rememberColor(resolvedUrl, extractedColor);
-      if (!mounted ||
-          generation != _loadGeneration ||
-          _loadedUrl != resolvedUrl) {
-        return;
-      }
-      _setBaseColor(extractedColor);
-    } on Object {
-      if (!mounted ||
-          generation != _loadGeneration ||
-          _loadedUrl != resolvedUrl) {
-        return;
-      }
-      _setBaseColor(null);
-    }
-  }
-
-  void _setBaseColor(Color? color) {
-    if (!mounted || _baseColor == color) {
-      return;
-    }
-    setState(() {
-      _baseColor = color;
-    });
-  }
-
-  void _rememberColor(String url, Color color) {
-    _colorCache[url] = color;
-    if (_colorCache.length <= _maxColorCacheEntries) {
-      return;
-    }
-
-    _colorCache.remove(_colorCache.keys.first);
-  }
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
-    final Color baseColor = _baseColor ?? colorScheme.primary;
+    final Color resolvedBaseColor = baseColor ?? colorScheme.primary;
     final _BackdropColors colors = _BackdropColors.from(
-      baseColor: baseColor,
+      baseColor: resolvedBaseColor,
       colorScheme: colorScheme,
       brightness: theme.brightness,
     );
@@ -169,7 +40,7 @@ class _PlayerDynamicBackdropState extends State<PlayerDynamicBackdrop> {
                 return _BackdropLayer(
                   colors: animatedColors,
                   colorScheme: colorScheme,
-                  variant: widget.variant,
+                  variant: variant,
                 );
               },
         ),

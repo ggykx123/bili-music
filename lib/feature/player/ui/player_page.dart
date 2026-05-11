@@ -4,6 +4,7 @@ import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
+import 'package:bilimusic/feature/player/logic/player_cover_color_provider.dart';
 import 'package:bilimusic/feature/player/ui/components/player_dynamic_backdrop.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_page.dart';
 import 'package:bilimusic/feature/player/ui/components/player_main_page.dart';
@@ -92,6 +93,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final bool isLyricPageActive = _currentPage == 2;
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
+    final Color? coverColor = ref
+        .watch(playerCoverColorProvider(item?.coverUrl))
+        .maybeWhen(data: (Color? color) => color, orElse: () => null);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -100,7 +104,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(
-              child: PlayerDynamicBackdrop(coverUrl: item?.coverUrl),
+              child: PlayerDynamicBackdrop(baseColor: coverColor),
             ),
             SafeArea(
               child: Center(
