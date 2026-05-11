@@ -49,3 +49,4 @@ docs/
 apr-release-key.jks
 .tool-versions
 .mindfs/
+.trae/
