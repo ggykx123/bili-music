@@ -201,6 +201,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                                 item: item,
                                 isActive: isLyricPageActive,
                                 onSeek: playerController.seek,
+                                activeColor: coverColor,
                               ),
                             ),
                           ],

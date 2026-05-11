@@ -138,6 +138,7 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
                     state: state,
                     item: item,
                     onSeek: controller.seek,
+                    activeColor: coverColor,
                   ),
                 ),
                 _DesktopPlayerControlDeck(
@@ -342,11 +343,13 @@ class _DesktopPlayerHeroSection extends ConsumerWidget {
     required this.state,
     required this.item,
     required this.onSeek,
+    this.activeColor,
   });
 
   final PlayerState state;
   final PlayableItem? item;
   final ValueChanged<Duration> onSeek;
+  final Color? activeColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -389,6 +392,7 @@ class _DesktopPlayerHeroSection extends ConsumerWidget {
                               item: item,
                               isActive: true,
                               onSeek: onSeek,
+                              activeColor: activeColor,
                               variant: PlayerLyricPanelVariant.desktop,
                             ),
                           ),

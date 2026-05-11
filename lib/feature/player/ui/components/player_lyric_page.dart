@@ -1,3 +1,4 @@
+import 'package:bilimusic/common/util/color_util.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
@@ -16,12 +17,14 @@ class PlayerLyricPage extends ConsumerWidget {
     required this.item,
     required this.isActive,
     required this.onSeek,
+    this.activeColor,
   });
 
   final PlayerState state;
   final PlayableItem? item;
   final bool isActive;
   final ValueChanged<Duration> onSeek;
+  final Color? activeColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,6 +37,7 @@ class PlayerLyricPage extends ConsumerWidget {
       item: item,
       isActive: isActive,
       onSeek: onSeek,
+      activeColor: activeColor,
     );
     if (item == null) {
       return content;
@@ -43,6 +47,7 @@ class PlayerLyricPage extends ConsumerWidget {
       children: <Widget>[
         Expanded(child: content),
         _PlayerLyricToolbar(
+          activeColor: ColorUtil.getAllShades(activeColor!)[600]!,
           onSearch: () => showManualLyricSearchSheet(
             context: context,
             initialKeyword: resolveLyricSearchKeyword(
@@ -63,12 +68,14 @@ class _PlayerLyricPanelHost extends ConsumerWidget {
     required this.item,
     required this.isActive,
     required this.onSeek,
+    this.activeColor,
   });
 
   final PlayerState baseState;
   final PlayableItem? item;
   final bool isActive;
   final ValueChanged<Duration> onSeek;
+  final Color? activeColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -88,20 +95,26 @@ class _PlayerLyricPanelHost extends ConsumerWidget {
       item: item,
       isActive: isActive,
       onSeek: onSeek,
+      activeColor: activeColor,
     );
   }
 }
 
 class _PlayerLyricToolbar extends StatelessWidget {
-  const _PlayerLyricToolbar({required this.onOffset, this.onSearch});
+  const _PlayerLyricToolbar({
+    required this.activeColor,
+    this.onOffset,
+    this.onSearch,
+  });
 
+  final Color activeColor;
   final VoidCallback? onSearch;
-  final VoidCallback onOffset;
+  final VoidCallback? onOffset;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final Color iconColor = colorScheme.primary.withValues(alpha: 0.72);
+    final Color iconColor = activeColor;
 
     return SafeArea(
       top: false,

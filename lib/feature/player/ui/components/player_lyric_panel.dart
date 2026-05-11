@@ -19,6 +19,7 @@ class PlayerLyricPanel extends ConsumerStatefulWidget {
     required this.item,
     required this.isActive,
     required this.onSeek,
+    this.activeColor,
     this.variant = PlayerLyricPanelVariant.mobile,
   });
 
@@ -26,6 +27,7 @@ class PlayerLyricPanel extends ConsumerStatefulWidget {
   final PlayableItem? item;
   final bool isActive;
   final ValueChanged<Duration> onSeek;
+  final Color? activeColor;
   final PlayerLyricPanelVariant variant;
 
   @override
@@ -237,12 +239,15 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
-    final Color activeColor = ColorUtil.getAllShades(colorScheme.primary)[700]!;
+    final Color accentColor = _resolveAccentColor(context);
+    final Color activeColor = ColorUtil.getAllShades(
+      accentColor,
+    )[600]!.withValues(alpha: 0.8);
     final Color normalColor = colorScheme.onSurface;
     final bool isDesktop = PlatformUtil.isDesktop;
     return LyricStyles.default1.copyWith(
       textStyle: (textTheme.bodyLarge ?? const TextStyle()).copyWith(
-        color: normalColor.withValues(alpha: 0.8),
+        color: normalColor.withValues(alpha: 0.7),
         fontSize: isDesktop ? 20 : 24,
         height: 1.25,
         fontWeight: FontWeight.w500,
@@ -266,14 +271,18 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
       lineGap: isDesktop ? 20 : 36,
       translationLineGap: 8,
       activeHighlightColor: activeColor,
-      selectedColor: colorScheme.primary,
-      selectedTranslationColor: colorScheme.primary.withValues(alpha: 0.72),
+      selectedColor: normalColor.withValues(alpha: 0.8),
+      selectedTranslationColor: normalColor.withValues(alpha: 0.8),
       highlightAlign: MainAxisAlignment.start,
       activeAlignment: MainAxisAlignment.start,
       anchorPosition: 0.42,
       activeAnchorPosition: 0.42,
       fadeRange: FadeRange(top: 0.42, bottom: 0.8),
     );
+  }
+
+  Color _resolveAccentColor(BuildContext context) {
+    return widget.activeColor ?? Theme.of(context).colorScheme.primary;
   }
 }
 
