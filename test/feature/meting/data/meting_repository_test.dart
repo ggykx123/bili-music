@@ -1,33 +1,16 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:bilimusic/feature/meting/data/meting_repository.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('MetingRepository', () {
-    test('search rejects missing API URL', () async {
-      final MetingRepository repository = MetingRepository(Dio());
-
-      await expectLater(
-        repository.search(keyword: '周杰伦'),
-        throwsA(
-          isA<MetingException>().having(
-            (MetingException error) => error.message,
-            'message',
-            contains('配置 Meting API 接口地址'),
-          ),
-        ),
-      );
-    });
-
     test('search returns empty list for empty keyword', () async {
       final MetingRepository repository = MetingRepository(
-        _dioWithResponse(<Map<String, dynamic>>[]),
+        searchRequest: _unusedSearchRequest,
+        lyricRequest: _unusedLyricRequest,
       );
 
       final List<MetingSearchItem> items = await repository.search(
@@ -37,46 +20,86 @@ void main() {
       expect(items, isEmpty);
     });
 
-    test('search parses search response', () async {
-      final _FakeHttpClientAdapter adapter = _FakeHttpClientAdapter(
-        <Map<String, dynamic>>[
-          <String, dynamic>{
-            'title': '晴天',
-            'author': '周杰伦',
-            'url': 'https://meting.example/api?type=url',
-            'pic': 'https://meting.example/api?type=pic',
-            'lrc': 'https://meting.example/api?type=lrc',
-          },
-        ],
-      );
+    test('search parses formatted meting_dart response', () async {
+      final List<_SearchRequest> requests = <_SearchRequest>[];
       final MetingRepository repository = MetingRepository(
-        _dioWithAdapter(adapter),
+        searchRequest:
+            ({
+              required MetingServer server,
+              required String keyword,
+              required Map<String, dynamic> option,
+            }) async {
+              requests.add(
+                _SearchRequest(
+                  server: server,
+                  keyword: keyword,
+                  option: option,
+                ),
+              );
+              return jsonEncode(<Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': '186016',
+                  'name': '晴天',
+                  'artist': <String>['周杰伦'],
+                  'lyric_id': '186016',
+                },
+              ]);
+            },
+        lyricRequest: _unusedLyricRequest,
       );
 
       final List<MetingSearchItem> items = await repository.search(
         keyword: ' 晴天 ',
-        server: MetingServer.tencent,
+        server: MetingServer.kugou,
       );
 
       expect(items, hasLength(1));
+      expect(items.single.id, '186016');
       expect(items.single.title, '晴天');
       expect(items.single.author, '周杰伦');
-      expect(items.single.lrc, contains('type=lrc'));
-      expect(
-        adapter.requests.single.baseUrl,
-        'https://meting.example/custom/meting.php',
+      expect(items.single.server, MetingServer.kugou);
+      expect(requests.single.server, MetingServer.kugou);
+      expect(requests.single.keyword, '晴天');
+      expect(requests.single.option['limit'], 10);
+    });
+
+    test('search falls back to song id when lyric id is missing', () async {
+      final MetingRepository repository = MetingRepository(
+        searchRequest:
+            ({
+              required MetingServer server,
+              required String keyword,
+              required Map<String, dynamic> option,
+            }) async {
+              return jsonEncode(<Map<String, dynamic>>[
+                <String, dynamic>{'id': 'kg_hash', 'name': '歌曲'},
+              ]);
+            },
+        lyricRequest: _unusedLyricRequest,
       );
-      expect(adapter.requests.single.path, isEmpty);
-      expect(adapter.requests.single.queryParameters['server'], 'tencent');
-      expect(adapter.requests.single.queryParameters['type'], 'search');
-      expect(adapter.requests.single.queryParameters['id'], '晴天');
+
+      final List<MetingSearchItem> items = await repository.search(
+        keyword: '歌曲',
+        server: MetingServer.kugou,
+      );
+
+      expect(items.single.id, 'kg_hash');
+      expect(items.single.server, MetingServer.kugou);
     });
 
     test('search falls back to empty strings for missing fields', () async {
       final MetingRepository repository = MetingRepository(
-        _dioWithResponse(<Map<String, dynamic>>[
-          <String, dynamic>{'title': '歌曲'},
-        ]),
+        searchRequest:
+            ({
+              required MetingServer server,
+              required String keyword,
+              required Map<String, dynamic> option,
+            }) async {
+              return jsonEncode(<Map<String, dynamic>>[
+                <String, dynamic>{'name': '歌曲'},
+              ]);
+            },
+        lyricRequest: _unusedLyricRequest,
       );
 
       final List<MetingSearchItem> items = await repository.search(
@@ -85,14 +108,21 @@ void main() {
 
       expect(items.single.title, '歌曲');
       expect(items.single.author, isEmpty);
-      expect(items.single.url, isEmpty);
-      expect(items.single.pic, isEmpty);
-      expect(items.single.lrc, isEmpty);
+      expect(items.single.id, isEmpty);
+      expect(items.single.server, MetingServer.netease);
     });
 
     test('search rejects malformed response', () async {
       final MetingRepository repository = MetingRepository(
-        _dioWithResponse(<String, dynamic>{'bad': true}),
+        searchRequest:
+            ({
+              required MetingServer server,
+              required String keyword,
+              required Map<String, dynamic> option,
+            }) async {
+              return jsonEncode(<String, dynamic>{'bad': true});
+            },
+        lyricRequest: _unusedLyricRequest,
       );
 
       await expectLater(
@@ -101,56 +131,61 @@ void main() {
           isA<MetingException>().having(
             (MetingException error) => error.message,
             'message',
-            contains('返回格式异常'),
+            contains('搜索返回格式异常'),
           ),
         ),
       );
     });
 
-    test('fetchLyrics returns plain lrc text', () async {
+    test('fetchLyrics returns formatted lyric text', () async {
       const String lyrics = '[00:00.000] 歌词第一行';
-      final _FakeHttpClientAdapter adapter = _FakeHttpClientAdapter(
-        lyrics,
-        responseType: _FakeResponseType.text,
-      );
+      final List<_LyricRequest> requests = <_LyricRequest>[];
       final MetingRepository repository = MetingRepository(
-        _dioWithAdapter(adapter),
+        searchRequest: _unusedSearchRequest,
+        lyricRequest:
+            ({required MetingServer server, required String id}) async {
+              requests.add(_LyricRequest(server: server, id: id));
+              return jsonEncode(<String, dynamic>{
+                'lyric': lyrics,
+                'tlyric': '',
+              });
+            },
       );
 
       final String result = await repository.fetchLyrics(
         const MetingSearchItem(
+          id: 'kg_hash',
           title: '晴天',
           author: '周杰伦',
-          url: '',
-          pic: '',
-          lrc: 'https://meting.example/api?server=netease&type=lrc&id=1',
+          server: MetingServer.kugou,
         ),
       );
 
       expect(result, lyrics);
-      expect(adapter.requests.single.path, contains('/api'));
+      expect(requests.single.server, MetingServer.kugou);
+      expect(requests.single.id, 'kg_hash');
     });
 
-    test('fetchLyrics rejects empty lrc url', () async {
+    test('fetchLyrics rejects empty lyric id', () async {
       final MetingRepository repository = MetingRepository(
-        _dioWithResponse(<Map<String, dynamic>>[]),
+        searchRequest: _unusedSearchRequest,
+        lyricRequest: _unusedLyricRequest,
       );
 
       await expectLater(
         repository.fetchLyrics(
           const MetingSearchItem(
+            id: '',
             title: '晴天',
             author: '周杰伦',
-            url: '',
-            pic: '',
-            lrc: '',
+            server: MetingServer.netease,
           ),
         ),
         throwsA(
           isA<MetingException>().having(
             (MetingException error) => error.message,
             'message',
-            contains('没有歌词地址'),
+            contains('没有歌词 ID'),
           ),
         ),
       );
@@ -158,72 +193,36 @@ void main() {
   });
 }
 
-Dio _dioWithResponse(Object response) {
-  return _dioWithAdapter(_FakeHttpClientAdapter(response));
+Future<Object?> _unusedSearchRequest({
+  required MetingServer server,
+  required String keyword,
+  required Map<String, dynamic> option,
+}) {
+  throw StateError('Unexpected search request');
 }
 
-Dio _dioWithAdapter(_FakeHttpClientAdapter adapter) {
-  return Dio(BaseOptions(baseUrl: 'https://meting.example/custom/meting.php'))
-    ..httpClientAdapter = adapter;
+Future<Object?> _unusedLyricRequest({
+  required MetingServer server,
+  required String id,
+}) {
+  throw StateError('Unexpected lyric request');
 }
 
-class _FakeHttpClientAdapter implements HttpClientAdapter {
-  _FakeHttpClientAdapter(
-    this.response, {
-    this.responseType = _FakeResponseType.json,
+class _SearchRequest {
+  const _SearchRequest({
+    required this.server,
+    required this.keyword,
+    required this.option,
   });
 
-  final Object response;
-  final _FakeResponseType responseType;
-  final List<_Request> requests = <_Request>[];
-
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    requests.add(
-      _Request(
-        baseUrl: options.baseUrl,
-        path: options.path,
-        queryParameters: Map<String, dynamic>.from(options.queryParameters),
-      ),
-    );
-
-    if (responseType == _FakeResponseType.text) {
-      return ResponseBody.fromString(
-        response.toString(),
-        200,
-        headers: <String, List<String>>{
-          Headers.contentTypeHeader: <String>['text/plain'],
-        },
-      );
-    }
-
-    return ResponseBody.fromString(
-      jsonEncode(response),
-      200,
-      headers: <String, List<String>>{
-        Headers.contentTypeHeader: <String>['application/json'],
-      },
-    );
-  }
-
-  @override
-  void close({bool force = false}) {}
+  final MetingServer server;
+  final String keyword;
+  final Map<String, dynamic> option;
 }
 
-enum _FakeResponseType { json, text }
+class _LyricRequest {
+  const _LyricRequest({required this.server, required this.id});
 
-class _Request {
-  const _Request({
-    required this.baseUrl,
-    required this.path,
-    required this.queryParameters,
-  });
-
-  final String baseUrl;
-  final String path;
-  final Map<String, dynamic> queryParameters;
+  final MetingServer server;
+  final String id;
 }

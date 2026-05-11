@@ -53,4 +53,4 @@ final class MetingRepositoryProvider
   }
 }
 
-String _$metingRepositoryHash() => r'b731d16218dd0d349b2adffdba5bffd0c8858956';
+String _$metingRepositoryHash() => r'556310e55ab1079e55b5a5b355f05e01302b3b0b';

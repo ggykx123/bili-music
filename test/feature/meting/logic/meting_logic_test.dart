@@ -2,7 +2,6 @@ import 'package:bilimusic/feature/meting/data/meting_repository.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:bilimusic/feature/meting/logic/meting_logic.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -43,7 +42,7 @@ void main() {
 
       final String? lyrics = await logic.findLyrics(
         title: '夜曲',
-        server: MetingServer.tencent,
+        server: MetingServer.netease,
       );
 
       expect(lyrics, '[00:00.000] 夜曲');
@@ -55,11 +54,10 @@ void main() {
 
 MetingSearchItem _item({required String title, required String author}) {
   return MetingSearchItem(
+    id: '1',
     title: title,
     author: author,
-    url: '',
-    pic: '',
-    lrc: 'https://meting.example/api?type=lrc',
+    server: MetingServer.netease,
   );
 }
 
@@ -69,7 +67,7 @@ class _FakeMetingRepository extends MetingRepository {
     Map<MetingSearchItem, String>? lyricsResponses,
   }) : _searchResponses = searchResponses ?? <String, List<MetingSearchItem>>{},
        _lyricsResponses = lyricsResponses ?? <MetingSearchItem, String>{},
-       super(Dio());
+       super();
 
   final Map<String, List<MetingSearchItem>> _searchResponses;
   final Map<MetingSearchItem, String> _lyricsResponses;

@@ -1,20 +1,43 @@
-import 'package:bilimusic/core/net/meting_client.dart';
+import 'dart:convert';
+
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
-import 'package:dio/dio.dart';
+import 'package:meting_dart/meting_dart.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'meting_repository.g.dart';
 
 @riverpod
 MetingRepository metingRepository(Ref ref) {
-  return MetingRepository(ref.read(metingClientProvider));
+  return const MetingRepository();
 }
 
-class MetingRepository {
-  const MetingRepository(this._dio);
+typedef MetingSearchRequest =
+    Future<Object?> Function({
+      required MetingServer server,
+      required String keyword,
+      required Map<String, dynamic> option,
+    });
 
-  final Dio _dio;
+typedef MetingLyricRequest =
+    Future<Object?> Function({
+      required MetingServer server,
+      required String id,
+    });
+
+class MetingRepository {
+  const MetingRepository({
+    MetingSearchRequest searchRequest = _defaultSearchRequest,
+    MetingLyricRequest lyricRequest = _defaultLyricRequest,
+  }) : this._(searchRequest: searchRequest, lyricRequest: lyricRequest);
+
+  const MetingRepository._({
+    required this._searchRequest,
+    required this._lyricRequest,
+  });
+
+  final MetingSearchRequest _searchRequest;
+  final MetingLyricRequest _lyricRequest;
 
   Future<List<MetingSearchItem>> search({
     required String keyword,
@@ -25,83 +48,100 @@ class MetingRepository {
       return const <MetingSearchItem>[];
     }
 
-    if (_dio.options.baseUrl.trim().isEmpty) {
-      throw const MetingException('请先在播放器设置中配置 Meting API 接口地址。');
-    }
-
     try {
-      final Response<dynamic> response = await _dio.get<dynamic>(
-        '',
-        queryParameters: <String, dynamic>{
-          'server': server.apiValue,
-          'type': 'search',
-          'id': trimmedKeyword,
-        },
+      final Object? response = await _searchRequest(
+        server: server,
+        keyword: trimmedKeyword,
+        option: const <String, dynamic>{'limit': 10},
       );
-      final dynamic data = response.data;
+      final Object? data = _decodeFormattedResponse(response);
       if (data is! List<dynamic>) {
-        throw const MetingException('Meting API 返回格式异常。');
+        throw const MetingException('Meting 搜索返回格式异常。');
       }
 
       return data
           .whereType<Map<String, dynamic>>()
-          .map(_mapSearchItem)
+          .map((Map<String, dynamic> json) => _mapSearchItem(json, server))
           .toList(growable: false);
     } on MetingException {
       rethrow;
-    } on DioException catch (error) {
-      throw MetingException(_describeDioError(error));
     } on Object catch (error) {
-      throw MetingException('Meting API 请求失败：$error');
+      throw MetingException('Meting 搜索失败：$error');
     }
   }
 
   Future<String> fetchLyrics(MetingSearchItem item) async {
-    final String lrcUrl = item.lrc.trim();
-    if (lrcUrl.isEmpty) {
-      throw const MetingException('当前歌曲没有歌词地址。');
+    final String id = item.id.trim();
+    if (id.isEmpty) {
+      throw const MetingException('当前歌曲没有歌词 ID。');
     }
 
     try {
-      final Response<dynamic> response = await _dio.get<dynamic>(
-        lrcUrl,
-        options: Options(responseType: ResponseType.plain),
-      );
-      final dynamic data = response.data;
-      if (data is String) {
-        return data;
+      final Object? response = await _lyricRequest(server: item.server, id: id);
+      final Object? data = _decodeFormattedResponse(response);
+      if (data is Map<String, dynamic>) {
+        return _readString(data['lyric']);
       }
-      throw const MetingException('Meting API 歌词返回格式异常。');
+      throw const MetingException('Meting 歌词返回格式异常。');
     } on MetingException {
       rethrow;
-    } on DioException catch (error) {
-      throw MetingException(_describeDioError(error));
     } on Object catch (error) {
-      throw MetingException('Meting API 请求失败：$error');
+      throw MetingException('Meting 歌词请求失败：$error');
     }
   }
 
-  MetingSearchItem _mapSearchItem(Map<String, dynamic> json) {
+  MetingSearchItem _mapSearchItem(
+    Map<String, dynamic> json,
+    MetingServer server,
+  ) {
     return MetingSearchItem(
-      title: _readString(json['title']),
-      author: _readString(json['author']),
-      url: _readString(json['url']),
-      pic: _readString(json['pic']),
-      lrc: _readString(json['lrc']),
+      id: _readString(json['lyric_id']).isNotEmpty
+          ? _readString(json['lyric_id'])
+          : _readString(json['id']),
+      title: _readString(json['name'] ?? json['title']),
+      author: _readAuthor(json['artist'] ?? json['author']),
+      server: server,
     );
+  }
+
+  Object? _decodeFormattedResponse(Object? value) {
+    if (value is String) {
+      return jsonDecode(value);
+    }
+    return value;
+  }
+
+  String _readAuthor(Object? value) {
+    if (value is List<dynamic>) {
+      return value
+          .whereType<Object>()
+          .map((Object item) => item.toString())
+          .where((String item) => item.isNotEmpty)
+          .join(' / ');
+    }
+    return _readString(value);
   }
 
   String _readString(Object? value) {
     return value is String ? value : '';
   }
+}
 
-  String _describeDioError(DioException error) {
-    final String message = error.message?.trim() ?? '';
-    if (message.isEmpty) {
-      return 'Meting API 请求失败。';
-    }
-    return 'Meting API 请求失败：$message';
-  }
+Future<Object?> _defaultSearchRequest({
+  required MetingServer server,
+  required String keyword,
+  required Map<String, dynamic> option,
+}) {
+  final Meting meting = Meting(server: server.apiValue)..format(true);
+  return meting.search(keyword, option: option);
+}
+
+Future<Object?> _defaultLyricRequest({
+  required MetingServer server,
+  required String id,
+}) {
+  final Meting meting = Meting(server: server.apiValue)..format(true);
+  return meting.lyric(id);
 }
 
 class MetingException implements Exception {
