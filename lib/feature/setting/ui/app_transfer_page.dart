@@ -6,7 +6,6 @@ import 'package:bilimusic/common/util/toast_util.dart';
 import 'package:bilimusic/common/components/url_text_input.dart';
 import 'package:bilimusic/core/theme/theme_logic.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
-import 'package:bilimusic/feature/meting/logic/meting_settings_logic.dart';
 import 'package:bilimusic/feature/player/logic/player_audio_quality_preference_logic.dart';
 import 'package:bilimusic/feature/player/logic/player_settings_logic.dart';
 import 'package:bilimusic/feature/setting/data/webdav_repository.dart';
@@ -588,7 +587,6 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
     ref.invalidate(appearanceSettingLogicProvider);
     ref.invalidate(playerSettingsLogicProvider);
     ref.invalidate(playerAudioQualityPreferenceLogicProvider);
-    ref.invalidate(metingSettingsLogicProvider);
   }
 }
 

@@ -49,7 +49,6 @@ class AppTransferRepository {
       key: HiveKeys.playerAudioQualityPreference,
       defaultValue: 'auto',
     ),
-    _TransferSettingKey(key: HiveKeys.metingBaseUrl, defaultValue: ''),
   ];
 
   Future<String> buildExportJson() async {
