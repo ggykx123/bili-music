@@ -137,17 +137,13 @@ class PlayerBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: ColorUtil.getShade(
-          theme.colorScheme.primary,
-          500,
-        ).withValues(alpha: 0.12),
+        color: Colors.white.withValues(alpha: 0.32),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: Colors.white70,
-          fontWeight: FontWeight.w600,
+          color: Colors.grey,
         ),
       ),
     );
