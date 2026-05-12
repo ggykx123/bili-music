@@ -60,7 +60,7 @@ jobs:
           echo '${{ secrets.KEY_PROPERTIES }}' > android/key.properties
 
       - name: Build Android Split APKs
-        run: flutter build apk --release --split-per-abi --flavor production
+        run: flutter build apk --release --split-per-abi --flavor production --obfuscate --split-debug-info=./build/app/intermediates
 
       - name: Rename Android APKs
         run: |
