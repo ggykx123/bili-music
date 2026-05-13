@@ -48,4 +48,4 @@ final class MetingLogicProvider
   }
 }
 
-String _$metingLogicHash() => r'5b193a7df79037a55096eb69d26a6ee606f3efb2';
+String _$metingLogicHash() => r'4fc6961cbedf86a99b98eb85dbadce2bc75c8203';

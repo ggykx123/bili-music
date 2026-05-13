@@ -271,7 +271,9 @@ class PlayerLyricsController extends _$PlayerLyricsController {
     String? fallbackKeyword;
     final MetingLogic metingLogic = ref.read(metingLogicProvider);
     for (final String title in item.lyricSearchTitles) {
-      final String keyword = metingLogic.extractSearchKeyword(title).trim();
+      final String keyword = (await metingLogic.resolveSearchKeyword(
+        title,
+      )).trim();
       if (fallbackKeyword == null && keyword.isNotEmpty) {
         fallbackKeyword = keyword;
       }
