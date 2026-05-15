@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:bilimusic/common/logger.dart';
+import 'package:bilimusic/core/net/bm_client.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/metadata/data/metadata_cache_repository.dart';
 import 'package:bilimusic/feature/metadata/data/metadata_resolver.dart';
@@ -14,6 +16,7 @@ import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
+import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'metadata_controller.g.dart';
@@ -312,35 +315,31 @@ class MetadataController extends _$MetadataController {
   }
 
   Future<MetadataLookupResult> _resolve(PlayableItem item) async {
-    String? fallbackKeyword;
     final MetingRepository metingRepository = ref.read(
       metingRepositoryProvider,
     );
-    for (final String title in item.lyricSearchTitles) {
-      final String keyword = _extractSearchKeyword(title).trim();
-      if (fallbackKeyword == null && keyword.isNotEmpty) {
-        fallbackKeyword = keyword;
-      }
+    final String title = _preferredMetadataTitle(item);
+    final String keyword = (await _resolveSearchKeyword(title)).trim();
+    final String? fallbackKeyword = keyword.isNotEmpty ? keyword : null;
 
-      final List<MetingSearchItem> results = await metingRepository.search(
-        keyword: keyword,
-        server: _resolveServer(title),
+    final List<MetingSearchItem> results = await metingRepository.search(
+      keyword: keyword,
+      server: _resolveServer(title),
+    );
+    for (final MetingSearchItem result in results) {
+      final String? lyrics = _normalizeLyrics(
+        await metingRepository.fetchLyrics(result),
       );
-      for (final MetingSearchItem result in results) {
-        final String? lyrics = _normalizeLyrics(
-          await metingRepository.fetchLyrics(result),
+      if (lyrics != null) {
+        return MetadataLookupResult(
+          metadata: await _buildMetadataFromSearchItem(
+            item: item,
+            searchItem: result,
+            lyrics: lyrics,
+          ),
+          searchKeyword: fallbackKeyword,
+          searchResults: results,
         );
-        if (lyrics != null) {
-          return MetadataLookupResult(
-            metadata: await _buildMetadataFromSearchItem(
-              item: item,
-              searchItem: result,
-              lyrics: lyrics,
-            ),
-            searchKeyword: keyword.isNotEmpty ? keyword : fallbackKeyword,
-            searchResults: results,
-          );
-        }
       }
     }
 
@@ -349,6 +348,20 @@ class MetadataController extends _$MetadataController {
       searchKeyword: fallbackKeyword,
       searchResults: const <MetingSearchItem>[],
     );
+  }
+
+  String _preferredMetadataTitle(PlayableItem item) {
+    final PlayerState playerState = ref.read(playerControllerProvider);
+    if (playerState.availableParts.length <= 1) {
+      return item.title.trim();
+    }
+
+    final String pageTitle = item.pageTitle?.trim() ?? '';
+    if (pageTitle.isNotEmpty) {
+      return pageTitle;
+    }
+
+    return item.title.trim();
   }
 
   Future<Metadata> _buildMetadataFromSearchItem({
@@ -405,6 +418,32 @@ class MetadataController extends _$MetadataController {
 
     result = replacedKeyword.isNotEmpty ? replacedKeyword : result;
     return result;
+  }
+
+  Future<String> _resolveSearchKeyword(String value) async {
+    final String rawTitle = value.trim();
+    if (rawTitle.isEmpty) {
+      return '';
+    }
+
+    final String fallbackKeyword = _extractSearchKeyword(rawTitle).trim();
+    try {
+      final Response<String> response = await ref
+          .read(bmClientProvider.notifier)
+          .post<String>(
+            '/ai',
+            data: <String, dynamic>{'message': rawTitle},
+            options: Options(responseType: ResponseType.plain),
+          );
+      final Object? decoded = jsonDecode(response.data ?? '{}');
+      if (decoded is String && decoded.isNotEmpty) {
+        return decoded;
+      }
+    } on Object catch (error) {
+      _logger.d('BM 识别失败，回退正则：$error');
+    }
+
+    return fallbackKeyword;
   }
 
   MetingServer _resolveServer(String value) {
