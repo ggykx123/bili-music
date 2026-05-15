@@ -33,7 +33,12 @@ class MetadataController extends _$MetadataController {
       PlayerState? previous,
       PlayerState next,
     ) {
-      if (previous?.currentItem?.stableId == next.currentItem?.stableId) {
+      final String? previousTitle = previous == null
+          ? null
+          : _metadataTitleFromState(previous);
+      final String? nextTitle = _metadataTitleFromState(next);
+      if (previous?.currentItem?.stableId == next.currentItem?.stableId &&
+          previousTitle == nextTitle) {
         return;
       }
       unawaited(_loadCurrentItemMetadata());
@@ -352,7 +357,30 @@ class MetadataController extends _$MetadataController {
 
   String _preferredMetadataTitle(PlayableItem item) {
     final PlayerState playerState = ref.read(playerControllerProvider);
-    if (playerState.availableParts.length <= 1) {
+    final bool hasMultipleParts =
+        playerState.currentItem?.stableId == item.stableId &&
+        playerState.availableParts.length > 1;
+
+    return _metadataTitleForItem(item, hasMultipleParts: hasMultipleParts);
+  }
+
+  String? _metadataTitleFromState(PlayerState playerState) {
+    final PlayableItem? item = playerState.currentItem;
+    if (item == null) {
+      return null;
+    }
+
+    return _metadataTitleForItem(
+      item,
+      hasMultipleParts: playerState.availableParts.length > 1,
+    );
+  }
+
+  String _metadataTitleForItem(
+    PlayableItem item, {
+    required bool hasMultipleParts,
+  }) {
+    if (!hasMultipleParts) {
       return item.title.trim();
     }
 
