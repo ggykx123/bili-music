@@ -42,6 +42,7 @@ void main() {
                   'name': '晴天',
                   'artist': <String>['周杰伦'],
                   'lyric_id': '186016',
+                  'pic_id': '109951170473693123',
                 },
               ]);
             },
@@ -58,6 +59,7 @@ void main() {
       expect(items.single.title, '晴天');
       expect(items.single.author, '周杰伦');
       expect(items.single.server, MetingServer.kugou);
+      expect(items.single.picId, '109951170473693123');
       expect(requests.single.server, MetingServer.kugou);
       expect(requests.single.keyword, '晴天');
       expect(requests.single.option['limit'], 10);
@@ -158,6 +160,7 @@ void main() {
           title: '晴天',
           author: '周杰伦',
           server: MetingServer.kugou,
+          picId: 'kg_pic',
         ),
       );
 
@@ -179,6 +182,7 @@ void main() {
             title: '晴天',
             author: '周杰伦',
             server: MetingServer.netease,
+            picId: '',
           ),
         ),
         throwsA(

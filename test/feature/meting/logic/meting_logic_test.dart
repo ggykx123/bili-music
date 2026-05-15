@@ -58,6 +58,7 @@ MetingSearchItem _item({required String title, required String author}) {
     title: title,
     author: author,
     server: MetingServer.netease,
+    picId: 'pic-1',
   );
 }
 
