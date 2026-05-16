@@ -194,6 +194,41 @@ void main() {
         ),
       );
     });
+
+    test('fetchPicture uses song id for kugou', () async {
+      final List<_PictureRequest> requests = <_PictureRequest>[];
+      final MetingRepository repository = MetingRepository(
+        searchRequest: _unusedSearchRequest,
+        lyricRequest: _unusedLyricRequest,
+        pictureRequest:
+            ({
+              required MetingServer server,
+              required String id,
+              required int size,
+            }) async {
+              requests.add(_PictureRequest(server: server, id: id, size: size));
+              return jsonEncode(<String, dynamic>{
+                'url': 'https://img.example.com/from-pic.jpg',
+              });
+            },
+      );
+
+      final String result = await repository.fetchPicture(
+        const MetingSearchItem(
+          id: 'kg_hash',
+          title: '晴天',
+          author: '周杰伦',
+          server: MetingServer.kugou,
+          picId: 'https://imge.kugou.com/stdmusic/{size}/cover.jpg',
+        ),
+        size: 480,
+      );
+
+      expect(result, 'https://img.example.com/from-pic.jpg');
+      expect(requests.single.server, MetingServer.kugou);
+      expect(requests.single.id, 'kg_hash');
+      expect(requests.single.size, 480);
+    });
   });
 }
 
@@ -210,6 +245,14 @@ Future<Object?> _unusedLyricRequest({
   required String id,
 }) {
   throw StateError('Unexpected lyric request');
+}
+
+Future<Object?> _unusedPictureRequest({
+  required MetingServer server,
+  required String id,
+  required int size,
+}) {
+  throw StateError('Unexpected picture request');
 }
 
 class _SearchRequest {
@@ -229,4 +272,16 @@ class _LyricRequest {
 
   final MetingServer server;
   final String id;
+}
+
+class _PictureRequest {
+  const _PictureRequest({
+    required this.server,
+    required this.id,
+    required this.size,
+  });
+
+  final MetingServer server;
+  final String id;
+  final int size;
 }

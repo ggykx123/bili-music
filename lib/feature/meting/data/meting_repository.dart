@@ -105,9 +105,7 @@ class MetingRepository {
   }
 
   Future<String> fetchPicture(MetingSearchItem item, {int size = 300}) async {
-    final String id = (item.picId?.trim().isNotEmpty ?? false)
-        ? item.picId!.trim()
-        : item.id.trim();
+    final String id = _pictureRequestId(item);
     if (id.isEmpty) {
       throw const MetingException('当前歌曲没有封面 ID。');
     }
@@ -131,6 +129,15 @@ class MetingRepository {
     } on Object catch (error) {
       throw MetingException('Meting 封面请求失败：$error');
     }
+  }
+
+  String _pictureRequestId(MetingSearchItem item) {
+    if (item.server == MetingServer.kugou) {
+      return item.id.trim();
+    }
+
+    final String picId = item.picId?.trim() ?? '';
+    return picId.isNotEmpty ? picId : item.id.trim();
   }
 
   MetingSearchItem _mapSearchItem(
