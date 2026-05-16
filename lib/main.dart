@@ -7,9 +7,9 @@ import 'package:bilimusic/core/theme/desktop_chinese_font.dart';
 import 'package:bilimusic/core/window/desktop_app_lifecycle.dart';
 import 'package:bilimusic/core/window/desktop_hotkey_controller.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
 import 'package:bilimusic/feature/player/logic/app_audio_handler.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:bilimusic/myApp.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,7 +126,7 @@ class _AppBootstrapState extends ConsumerState<_AppBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(playerLyricsControllerProvider, (previous, next) {});
+    ref.listen(metadataControllerProvider, (previous, next) {});
     return widget.child;
   }
 }

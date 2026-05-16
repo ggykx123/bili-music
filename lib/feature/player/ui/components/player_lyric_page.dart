@@ -1,8 +1,8 @@
 import 'package:bilimusic/common/util/color_util.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:bilimusic/feature/player/logic/player_progress_provider.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_panel.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_tools.dart';
@@ -28,9 +28,7 @@ class PlayerLyricPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
 
     final Widget content = _PlayerLyricPanelHost(
       baseState: state,
@@ -51,7 +49,7 @@ class PlayerLyricPage extends ConsumerWidget {
           onSearch: () => showManualLyricSearchSheet(
             context: context,
             initialKeyword: resolveLyricSearchKeyword(
-              lyricsState: lyricsState,
+              metadataState: metadataState,
               item: item,
             ),
           ),

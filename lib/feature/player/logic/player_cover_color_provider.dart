@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:adaptive_palette/adaptive_palette.dart';
 import 'package:bilimusic/core/cache/cache_util.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
+import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -23,16 +26,23 @@ class PlayerCoverColorController extends _$PlayerCoverColorController {
       PlayerState? previous,
       PlayerState next,
     ) {
-      final String? coverUrl = next.currentItem?.coverUrl;
-      if (previous?.currentItem?.coverUrl == coverUrl) {
+      if (previous?.currentItem?.stableId == next.currentItem?.stableId) {
         return;
       }
 
-      unawaited(
-        Future<void>(() {
-          _useCoverUrl(coverUrl);
-        }),
-      );
+      _scheduleUseCurrentCoverUrl();
+    }, fireImmediately: true);
+
+    ref.listen<MetadataState>(metadataControllerProvider, (
+      MetadataState? previous,
+      MetadataState next,
+    ) {
+      if (previous?.metadata?.albumArtUrl == next.metadata?.albumArtUrl &&
+          previous?.stableId == next.stableId) {
+        return;
+      }
+
+      _scheduleUseCurrentCoverUrl();
     }, fireImmediately: true);
 
     return null;
@@ -42,6 +52,31 @@ class PlayerCoverColorController extends _$PlayerCoverColorController {
 
   Color? getCurrentColor() {
     return state;
+  }
+
+  void _scheduleUseCurrentCoverUrl() {
+    unawaited(
+      Future<void>(() {
+        _useCoverUrl(_resolveCurrentCoverUrl());
+      }),
+    );
+  }
+
+  String? _resolveCurrentCoverUrl() {
+    final PlayableItem? item = ref.read(playerControllerProvider).currentItem;
+    if (item == null) {
+      return null;
+    }
+
+    final MetadataState metadataState = ref.read(metadataControllerProvider);
+    final String metadataCoverUrl = metadataState.stableId == item.stableId
+        ? metadataState.metadata?.albumArtUrl?.trim() ?? ''
+        : '';
+    if (metadataCoverUrl.isNotEmpty) {
+      return metadataCoverUrl;
+    }
+
+    return item.coverUrl;
   }
 
   void _useCoverUrl(String? coverUrl) {

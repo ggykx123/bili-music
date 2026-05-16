@@ -22,6 +22,7 @@ class PlayerMainPage extends ConsumerWidget {
     super.key,
     required this.state,
     required this.item,
+    required this.displayCoverUrl,
     required this.commentCount,
     required this.availableParts,
     required this.onPartTap,
@@ -39,6 +40,7 @@ class PlayerMainPage extends ConsumerWidget {
 
   final PlayerState state;
   final PlayableItem? item;
+  final String? displayCoverUrl;
   final int? commentCount;
   final List<PlayableItem> availableParts;
   final VoidCallback? onPartTap;
@@ -77,6 +79,7 @@ class PlayerMainPage extends ConsumerWidget {
           child: _PlayerHeroAndTitle(
             artworkSize: artworkSize,
             item: item,
+            displayCoverUrl: displayCoverUrl,
             state: state,
             isFavorite: isFavorite,
             onlineAudienceLabel: onlineAudienceLabel,
@@ -136,6 +139,7 @@ class _PlayerHeroAndTitle extends StatelessWidget {
   const _PlayerHeroAndTitle({
     required this.artworkSize,
     required this.item,
+    required this.displayCoverUrl,
     required this.state,
     required this.isFavorite,
     required this.onlineAudienceLabel,
@@ -144,6 +148,7 @@ class _PlayerHeroAndTitle extends StatelessWidget {
 
   final double artworkSize;
   final PlayableItem? item;
+  final String? displayCoverUrl;
   final PlayerState state;
   final bool isFavorite;
   final String? onlineAudienceLabel;
@@ -161,7 +166,7 @@ class _PlayerHeroAndTitle extends StatelessWidget {
             child: SizedBox(
               width: artworkSize,
               height: artworkSize,
-              child: PlayerArtworkFrame(coverUrl: item?.coverUrl ?? ''),
+              child: PlayerArtworkFrame(coverUrl: displayCoverUrl ?? ''),
             ),
           ),
         ),

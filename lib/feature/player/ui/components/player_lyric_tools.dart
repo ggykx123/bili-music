@@ -1,16 +1,17 @@
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 String resolveLyricSearchKeyword({
-  required PlayerLyricsState lyricsState,
+  required MetadataState metadataState,
   required PlayableItem? item,
 }) {
-  return lyricsState.searchKeyword?.trim() ?? item?.title.trim() ?? '';
+  return metadataState.searchKeyword?.trim() ?? item?.title.trim() ?? '';
 }
 
 Future<void> showLyricOffsetSheet(BuildContext context) async {
@@ -48,11 +49,9 @@ class _LyricOffsetSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
-    final PlayerLyricsController controller = ref.read(
-      playerLyricsControllerProvider.notifier,
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
+    final MetadataController controller = ref.read(
+      metadataControllerProvider.notifier,
     );
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
@@ -74,7 +73,9 @@ class _LyricOffsetSheet extends ConsumerWidget {
                 width: 96,
                 child: Center(
                   child: Text(
-                    _formatOffset(lyricsState.lyricOffsetMs),
+                    _formatOffset(
+                      resolveDisplayLyricOffsetMs(metadataState.metadata),
+                    ),
                     style: textTheme.titleMedium?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w800,
@@ -126,7 +127,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
         return;
       }
       ref
-          .read(playerLyricsControllerProvider.notifier)
+          .read(metadataControllerProvider.notifier)
           .searchManual(keyword, server: _selectedServer);
     });
   }
@@ -139,9 +140,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
     final ThemeData theme = Theme.of(context);
     final EdgeInsets insets = MediaQuery.viewInsetsOf(context);
 
@@ -194,7 +193,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              Expanded(child: _buildResultList(context, theme, lyricsState)),
+              Expanded(child: _buildResultList(context, theme, metadataState)),
             ],
           ),
         ),
@@ -205,32 +204,32 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
   Widget _buildResultList(
     BuildContext context,
     ThemeData theme,
-    PlayerLyricsState lyricsState,
+    MetadataState metadataState,
   ) {
-    if (lyricsState.isSearching && lyricsState.searchResults.isEmpty) {
+    if (metadataState.isSearching && metadataState.searchResults.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (lyricsState.manualSearchError != null &&
-        lyricsState.manualSearchError!.isNotEmpty) {
+    if (metadataState.manualSearchError != null &&
+        metadataState.manualSearchError!.isNotEmpty) {
       return Center(
         child: Text(
-          lyricsState.manualSearchError!,
+          metadataState.manualSearchError!,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium,
         ),
       );
     }
 
-    if (lyricsState.searchResults.isEmpty) {
+    if (metadataState.searchResults.isEmpty) {
       return Center(child: Text('没有搜索到结果', style: theme.textTheme.bodyMedium));
     }
 
     return ListView.separated(
-      itemCount: lyricsState.searchResults.length,
+      itemCount: metadataState.searchResults.length,
       separatorBuilder: (_, _) => const Divider(height: 0),
       itemBuilder: (BuildContext context, int index) {
-        final MetingSearchItem item = lyricsState.searchResults[index];
+        final MetingSearchItem item = metadataState.searchResults[index];
         final String title = item.title.trim().isEmpty
             ? '未知歌曲'
             : item.title.trim();
@@ -240,7 +239,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
         return ListTile(
           title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: lyricsState.isSearching
+          onTap: metadataState.isSearching
               ? null
               : () => _applyResult(context, item),
         );
@@ -250,15 +249,11 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
 
   Future<void> _applyResult(BuildContext context, MetingSearchItem item) async {
     final NavigatorState navigator = Navigator.of(context);
-    await ref
-        .read(playerLyricsControllerProvider.notifier)
-        .applyManualResult(item);
+    await ref.read(metadataControllerProvider.notifier).applyManualResult(item);
     if (!mounted) {
       return;
     }
-    final PlayerLyricsState nextState = ref.read(
-      playerLyricsControllerProvider,
-    );
+    final MetadataState nextState = ref.read(metadataControllerProvider);
     if (nextState.manualSearchError == null ||
         nextState.manualSearchError!.isEmpty) {
       navigator.pop();
@@ -267,7 +262,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
 
   void _submitSearch() {
     ref
-        .read(playerLyricsControllerProvider.notifier)
+        .read(metadataControllerProvider.notifier)
         .searchManual(_controller.text, server: _selectedServer);
   }
 }
