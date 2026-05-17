@@ -1,9 +1,10 @@
+import 'package:bilimusic/common/components/cached_image.dart';
 import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
 import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
+import 'package:bilimusic/feature/meting/data/meting_repository.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,18 +13,6 @@ String resolveLyricSearchKeyword({
   required PlayableItem? item,
 }) {
   return metadataState.searchKeyword?.trim() ?? item?.title.trim() ?? '';
-}
-
-Future<void> showLyricOffsetSheet(BuildContext context) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
-    builder: (BuildContext context) {
-      return const _LyricOffsetSheet();
-    },
-  );
 }
 
 Future<void> showManualLyricSearchSheet({
@@ -42,68 +31,6 @@ Future<void> showManualLyricSearchSheet({
   );
 }
 
-class _LyricOffsetSheet extends ConsumerWidget {
-  const _LyricOffsetSheet();
-
-  static const int _stepMs = 500;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final MetadataState metadataState = ref.watch(metadataControllerProvider);
-    final MetadataController controller = ref.read(
-      metadataControllerProvider.notifier,
-    );
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              IconButton(
-                tooltip: '歌词延后 0.5 秒',
-                onPressed: () => controller.adjustOffset(-_stepMs),
-                icon: const Icon(Icons.remove_rounded),
-              ),
-              SizedBox(
-                width: 96,
-                child: Center(
-                  child: Text(
-                    _formatOffset(
-                      resolveDisplayLyricOffsetMs(metadataState.metadata),
-                    ),
-                    style: textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: '歌词提前 0.5 秒',
-                onPressed: () => controller.adjustOffset(_stepMs),
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _formatOffset(int offsetMs) {
-  final double seconds = offsetMs / Duration.millisecondsPerSecond;
-  if (offsetMs > 0) {
-    return '+${seconds.toStringAsFixed(1)}s';
-  }
-  return '${seconds.toStringAsFixed(1)}s';
-}
-
 class _LyricSearchSheet extends ConsumerStatefulWidget {
   const _LyricSearchSheet({required this.initialKeyword});
 
@@ -115,6 +42,8 @@ class _LyricSearchSheet extends ConsumerStatefulWidget {
 
 class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
   late final TextEditingController _controller;
+  final Map<String, Future<String?>> _pictureFutureCache =
+      <String, Future<String?>>{};
   MetingServer _selectedServer = MetingServer.netease;
 
   @override
@@ -236,12 +165,12 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
         final String author = item.author.trim().isEmpty
             ? '未知歌手'
             : item.author.trim();
-        return ListTile(
-          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: metadataState.isSearching
-              ? null
-              : () => _applyResult(context, item),
+        return _LyricSearchResultTile(
+          title: title,
+          author: author,
+          pictureUrlFuture: _pictureFutureFor(item),
+          enabled: !metadataState.isSearching,
+          onTap: () => _applyResult(context, item),
         );
       },
     );
@@ -260,9 +189,66 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
     }
   }
 
+  Future<String?> _loadPictureUrl(MetingSearchItem item) async {
+    try {
+      final String url = await ref
+          .read(metingRepositoryProvider)
+          .fetchPicture(item, size: 120);
+      final String trimmedUrl = url.trim();
+      return trimmedUrl.isEmpty ? null : trimmedUrl;
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<String?> _pictureFutureFor(MetingSearchItem item) {
+    final String cacheKey =
+        '${item.server.name}:${item.id}:${item.picId ?? ''}';
+    return _pictureFutureCache.putIfAbsent(
+      cacheKey,
+      () => _loadPictureUrl(item),
+    );
+  }
+
   void _submitSearch() {
     ref
         .read(metadataControllerProvider.notifier)
         .searchManual(_controller.text, server: _selectedServer);
+  }
+}
+
+class _LyricSearchResultTile extends StatelessWidget {
+  const _LyricSearchResultTile({
+    required this.title,
+    required this.author,
+    required this.pictureUrlFuture,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String title;
+  final String author;
+  final Future<String?> pictureUrlFuture;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: FutureBuilder<String?>(
+        future: pictureUrlFuture,
+        builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
+          return CommonCachedImage(
+            imageUrl: snapshot.data,
+            width: 44,
+            height: 44,
+            borderRadius: BorderRadius.circular(8),
+          );
+        },
+      ),
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
+      onTap: enabled ? onTap : null,
+    );
   }
 }

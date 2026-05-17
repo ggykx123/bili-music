@@ -11,6 +11,8 @@ import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/favorites/ui/components/favorite_like_button.dart';
 import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
 import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
+import 'package:bilimusic/feature/metadata/ui/components/lyric_offset_sheet.dart';
+import 'package:bilimusic/feature/metadata/ui/components/lyric_search_sheet.dart';
 import 'package:bilimusic/feature/player/domain/audio_stream_info.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
@@ -23,7 +25,6 @@ import 'package:bilimusic/feature/player/ui/components/player_collection_sheet.d
 import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:bilimusic/feature/player/ui/components/player_dynamic_backdrop.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_panel.dart';
-import 'package:bilimusic/feature/player/ui/components/player_lyric_tools.dart';
 import 'package:bilimusic/feature/player/ui/components/player_part_selector.dart';
 import 'package:bilimusic/feature/player/ui/components/player_queue_sheet.dart';
 import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
@@ -111,7 +112,6 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
               bottom: 80,
               right: 20,
               child: _DesktopLyricToolRail(
-                enabled: item != null,
                 onSearch: item == null
                     ? null
                     : () {
@@ -419,13 +419,8 @@ class _DesktopPlayerHeroSection extends ConsumerWidget {
 }
 
 class _DesktopLyricToolRail extends StatelessWidget {
-  const _DesktopLyricToolRail({
-    required this.enabled,
-    required this.onSearch,
-    required this.onOffset,
-  });
+  const _DesktopLyricToolRail({required this.onSearch, required this.onOffset});
 
-  final bool enabled;
   final VoidCallback? onSearch;
   final VoidCallback? onOffset;
 
@@ -443,13 +438,13 @@ class _DesktopLyricToolRail extends StatelessWidget {
               BarIconButton(
                 icon: Icons.search_rounded,
                 tooltip: '手动匹配歌词',
-                onPressed: enabled ? onSearch : null,
+                onPressed: onSearch,
               ),
               const SizedBox(height: 4),
               BarIconButton(
                 icon: Icons.hourglass_empty_rounded,
                 tooltip: '歌词偏移',
-                onPressed: enabled ? onOffset : null,
+                onPressed: onOffset,
               ),
             ],
           ),
