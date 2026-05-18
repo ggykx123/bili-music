@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:bilimusic/feature/metadata/domain/metadata.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:meting_dart/meting_dart.dart';
@@ -84,7 +85,7 @@ class MetingRepository {
     }
   }
 
-  Future<String> fetchLyrics(MetingSearchItem item) async {
+  Future<MetaLyrics> fetchLyrics(MetingSearchItem item) async {
     final String id = item.id.trim();
     if (id.isEmpty) {
       throw const MetingException('当前歌曲没有歌词 ID。');
@@ -94,7 +95,13 @@ class MetingRepository {
       final Object? response = await _lyricRequest(server: item.server, id: id);
       final Object? data = _decodeFormattedResponse(response);
       if (data is Map<String, dynamic>) {
-        return _readString(data['lyric']);
+        return MetaLyrics(
+          lyric: _readText(data['lyric']),
+          translatedLyric: _readText(data['tlyric']),
+          romanizedLyric: _readText(data['rlyric']),
+          karaokeLyric: _readText(data['klyric']),
+          karaokeTranslatedLyric: _readText(data['ktlyric']),
+        );
       }
       throw const MetingException('Meting 歌词返回格式异常。');
     } on MetingException {
@@ -175,6 +182,11 @@ class MetingRepository {
 
   String _readString(Object? value) {
     return value is String ? value : '';
+  }
+
+  String? _readText(Object? value) {
+    final String trimmed = _readString(value).trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }
 
