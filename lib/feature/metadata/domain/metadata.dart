@@ -2,6 +2,7 @@ import 'package:bilimusic/common/domain/meta_lyrics.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'metadata.freezed.dart';
+part 'metadata.g.dart';
 
 @freezed
 abstract class Metadata with _$Metadata {
@@ -17,6 +18,9 @@ abstract class Metadata with _$Metadata {
   }) = _Metadata;
 
   const Metadata._();
+
+  factory Metadata.fromJson(Map<String, dynamic> json) =>
+      _$MetadataFromJson(json);
 
   bool get hasLyrics =>
       (lyrics != null && lyrics!.trim().isNotEmpty) ||

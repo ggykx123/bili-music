@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:bilimusic/core/cache/app_cache_manager.dart';
+import 'package:bilimusic/feature/metadata/data/metadata_cache_repository.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 class CacheUtil {
@@ -12,9 +16,6 @@ class CacheUtil {
   static CacheManager get imageCacheManager => AppImageCacheManager.instance;
   static CacheManager get audioCacheManager => AppAudioCacheManager.instance;
   static CacheManager get lyricsCacheManager => AppLyricsCacheManager.instance;
-  static CacheManager get metadataCacheManager =>
-      AppMetadataCacheManager.instance;
-
   static Future<void> clearImageCache() async {
     await imageCacheManager.emptyCache();
   }
@@ -41,7 +42,7 @@ class CacheUtil {
   }
 
   static Future<void> clearMetadataCache() async {
-    await metadataCacheManager.emptyCache();
+    await Hive.box<Metadata>(metadataCacheBoxName).clear();
   }
 
   static Future<void> clearAllCache() async {
@@ -65,7 +66,7 @@ class CacheUtil {
   }
 
   static Future<void> removeMetadataCache(String key) async {
-    await metadataCacheManager.removeFile(key);
+    await Hive.box<Metadata>(metadataCacheBoxName).delete(key);
   }
 
   static Future<FileInfo?> getImageCache(String url) async {
@@ -80,8 +81,8 @@ class CacheUtil {
     return await lyricsCacheManager.getFileFromCache(key);
   }
 
-  static Future<FileInfo?> getMetadataCache(String key) async {
-    return await metadataCacheManager.getFileFromCache(key);
+  static Metadata? getMetadataCache(String key) {
+    return Hive.box<Metadata>(metadataCacheBoxName).get(key);
   }
 
   static Future<int> getImageCacheSizeBytes() async {
@@ -109,26 +110,12 @@ class CacheUtil {
   }
 
   static Future<int> getMetadataCacheSizeBytes() async {
-    final Directory metadataCacheDirectory = await _getMetadataCacheDirectory();
-    if (!await metadataCacheDirectory.exists()) {
-      return 0;
-    }
-
+    final Box<Metadata> box = Hive.box<Metadata>(metadataCacheBoxName);
     int total = 0;
-    await for (final FileSystemEntity entity in metadataCacheDirectory.list()) {
-      if (entity is! File) {
-        continue;
-      }
-      total += await entity.length();
+    for (final Metadata metadata in box.values) {
+      total += utf8.encode(jsonEncode(metadata.toJson())).length;
     }
     return total;
-  }
-
-  static Future<Directory> _getMetadataCacheDirectory() async {
-    final Directory baseDirectory = await getTemporaryDirectory();
-    return Directory.fromUri(
-      baseDirectory.uri.resolve('$_lyricsCacheDirectoryName/'),
-    );
   }
 
   static Future<Directory> _getLyricsCacheDirectory() async {

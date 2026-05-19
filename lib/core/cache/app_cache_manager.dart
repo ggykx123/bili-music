@@ -44,18 +44,3 @@ class AppLyricsCacheManager extends CacheManager {
 
   static final AppLyricsCacheManager instance = AppLyricsCacheManager._();
 }
-
-class AppMetadataCacheManager extends CacheManager {
-  AppMetadataCacheManager._()
-    : super(
-        Config(
-          _cacheKey,
-          stalePeriod: const Duration(days: 60),
-          maxNrOfCacheObjects: 500,
-        ),
-      );
-
-  static const String _cacheKey = 'bilimusic_metadata_cache';
-
-  static final AppMetadataCacheManager instance = AppMetadataCacheManager._();
-}

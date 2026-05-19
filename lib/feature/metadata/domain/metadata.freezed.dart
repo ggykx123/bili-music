@@ -11,6 +11,7 @@ part of 'metadata.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
+
 /// @nodoc
 mixin _$Metadata {
 
@@ -21,6 +22,8 @@ mixin _$Metadata {
 @pragma('vm:prefer-inline')
 $MetadataCopyWith<Metadata> get copyWith => _$MetadataCopyWithImpl<Metadata>(this as Metadata, _$identity);
 
+  /// Serializes this Metadata to a JSON map.
+  Map<String, dynamic> toJson();
 
 
 @override
@@ -28,7 +31,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is Metadata&&(identical(other.stableId, stableId) || other.stableId == stableId)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.title, title) || other.title == title)&&(identical(other.lyrics, lyrics) || other.lyrics == lyrics)&&(identical(other.metaLyrics, metaLyrics) || other.metaLyrics == metaLyrics)&&(identical(other.albumArtUrl, albumArtUrl) || other.albumArtUrl == albumArtUrl)&&(identical(other.lyricOffsetMs, lyricOffsetMs) || other.lyricOffsetMs == lyricOffsetMs)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,stableId,artist,title,lyrics,metaLyrics,albumArtUrl,lyricOffsetMs,updatedAt);
 
@@ -222,11 +225,11 @@ return $default(_that.stableId,_that.artist,_that.title,_that.lyrics,_that.metaL
 }
 
 /// @nodoc
-
+@JsonSerializable()
 
 class _Metadata extends Metadata {
   const _Metadata({required this.stableId, this.artist, this.title, this.lyrics, this.metaLyrics, this.albumArtUrl, this.lyricOffsetMs = 0, this.updatedAt}): super._();
-  
+  factory _Metadata.fromJson(Map<String, dynamic> json) => _$MetadataFromJson(json);
 
 @override final  String stableId;
 @override final  String? artist;
@@ -243,14 +246,17 @@ class _Metadata extends Metadata {
 @pragma('vm:prefer-inline')
 _$MetadataCopyWith<_Metadata> get copyWith => __$MetadataCopyWithImpl<_Metadata>(this, _$identity);
 
-
+@override
+Map<String, dynamic> toJson() {
+  return _$MetadataToJson(this, );
+}
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _Metadata&&(identical(other.stableId, stableId) || other.stableId == stableId)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.title, title) || other.title == title)&&(identical(other.lyrics, lyrics) || other.lyrics == lyrics)&&(identical(other.metaLyrics, metaLyrics) || other.metaLyrics == metaLyrics)&&(identical(other.albumArtUrl, albumArtUrl) || other.albumArtUrl == albumArtUrl)&&(identical(other.lyricOffsetMs, lyricOffsetMs) || other.lyricOffsetMs == lyricOffsetMs)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,stableId,artist,title,lyrics,metaLyrics,albumArtUrl,lyricOffsetMs,updatedAt);
 

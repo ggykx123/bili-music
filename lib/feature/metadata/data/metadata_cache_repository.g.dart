@@ -55,4 +55,4 @@ final class MetadataCacheRepositoryProvider
 }
 
 String _$metadataCacheRepositoryHash() =>
-    r'd57942047fc78fd64b5e627bdf5d81f6e006aaa1';
+    r'0d21a0b3a6417bb62561dfc2f5ae5cb26ea0d044';

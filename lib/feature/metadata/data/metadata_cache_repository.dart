@@ -1,86 +1,57 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
-
-import 'package:bilimusic/core/cache/app_cache_manager.dart';
 import 'package:bilimusic/feature/metadata/domain/metadata.dart';
-import 'package:bilimusic/feature/metadata/domain/metadata_cache_entry.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'metadata_cache_repository.g.dart';
 
+const String metadataCacheBoxName = 'metadata_cache';
+
 @riverpod
 MetadataCacheRepository metadataCacheRepository(Ref ref) {
-  return MetadataCacheRepository(AppMetadataCacheManager.instance);
+  return MetadataCacheRepository(Hive.box<Metadata>(metadataCacheBoxName));
 }
 
 class MetadataCacheRepository {
-  MetadataCacheRepository(this._cacheManager);
+  MetadataCacheRepository(this._box);
 
-  final CacheManager _cacheManager;
+  final Box<Metadata> _box;
 
   String buildCacheKey({required PlayableItem item}) {
-    return 'metadata:${item.stableId}';
+    return item.stableId;
   }
 
-  Future<MetadataCacheEntry?> getCachedEntry({
-    required PlayableItem item,
-  }) async {
+  Future<Metadata?> getCachedMetadata({required PlayableItem item}) async {
     final String key = buildCacheKey(item: item);
-    final FileInfo? fileInfo = await _cacheManager.getFileFromCache(key);
-    if (fileInfo == null) {
+    final Metadata? metadata = _box.get(key);
+    if (metadata == null) {
       return null;
     }
 
-    if (!await fileInfo.file.exists()) {
-      await _cacheManager.removeFile(key);
+    if (metadata.stableId != item.stableId) {
+      await _box.delete(key);
       return null;
     }
-
-    try {
-      final String content = await fileInfo.file.readAsString();
-      final dynamic decoded = jsonDecode(content);
-      if (decoded is! Map<String, dynamic>) {
-        await _cacheManager.removeFile(key);
-        return null;
-      }
-
-      final MetadataCacheEntry entry = MetadataCacheEntry.fromJson(decoded);
-      if (entry.stableId != item.stableId) {
-        await _cacheManager.removeFile(key);
-        return null;
-      }
-      return entry;
-    } on FormatException {
-      await _cacheManager.removeFile(key);
-      return null;
-    } on FileSystemException {
-      await _cacheManager.removeFile(key);
-      return null;
-    } on Object {
-      await _cacheManager.removeFile(key);
-      return null;
-    }
+    return metadata;
   }
 
-  Future<void> putCachedEntry({
+  Future<void> putCachedMetadata({
     required PlayableItem item,
     required Metadata metadata,
   }) async {
-    final MetadataCacheEntry entry = MetadataCacheEntry.fromMetadata(metadata);
-    final Uint8List bytes = Uint8List.fromList(
-      utf8.encode(jsonEncode(entry.toJson())),
-    );
-    await _cacheManager.putFile(
+    await _box.put(
       buildCacheKey(item: item),
-      bytes,
-      fileExtension: 'json',
+      metadata.updatedAt == null
+          ? metadata.copyWith(updatedAt: DateTime.now())
+          : metadata,
     );
   }
 
-  Future<void> removeCachedEntry({required PlayableItem item}) {
-    return _cacheManager.removeFile(buildCacheKey(item: item));
+  Future<void> removeCachedMetadata({required PlayableItem item}) {
+    return _box.delete(buildCacheKey(item: item));
+  }
+
+  Future<void> clear() {
+    return _box.clear();
   }
 }
