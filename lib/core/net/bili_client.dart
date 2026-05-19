@@ -1,6 +1,7 @@
 import 'package:bilimusic/common/logger.dart';
 import 'package:bilimusic/core/net/net_config.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'bili_client.g.dart';
@@ -22,13 +23,17 @@ class BiliClient extends _$BiliClient {
       ),
     );
 
-    _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: AppLogger.dioLogPrint,
-      ),
-    );
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestHeader: false,
+          requestBody: false,
+          responseHeader: false,
+          responseBody: false,
+          logPrint: AppLogger.dioLogPrint,
+        ),
+      );
+    }
     _logger.i('Dio client initialized');
     return _dio;
   }
