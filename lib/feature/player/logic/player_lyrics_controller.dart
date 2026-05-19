@@ -147,9 +147,9 @@ class PlayerLyricsController extends _$PlayerLyricsController {
     state = applyingState;
 
     try {
-      final String rawLyrics = await ref
-          .read(metingLogicProvider)
-          .fetchLyrics(item);
+      final String? rawLyrics =
+          (await ref.read(metingLogicProvider).fetchLyrics(item))
+              .preferredMainLyric;
       if (state.stableId != stableId) {
         return;
       }
@@ -283,7 +283,7 @@ class PlayerLyricsController extends _$PlayerLyricsController {
       );
       for (final MetingSearchItem result in response.results) {
         final String? normalizedLyrics = _normalizeLyrics(
-          await metingLogic.fetchLyrics(result),
+          (await metingLogic.fetchLyrics(result)).preferredMainLyric,
         );
         if (normalizedLyrics != null) {
           return (

@@ -10,6 +10,7 @@ import 'package:bilimusic/feature/metadata/domain/metadata.dart';
 import 'package:bilimusic/feature/metadata/domain/metadata_cache_entry.dart';
 import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
 import 'package:bilimusic/feature/meting/data/meting_repository.dart';
+import 'package:bilimusic/common/domain/meta_lyrics.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_response.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
@@ -162,7 +163,7 @@ class MetadataController extends _$MetadataController {
       final Metadata metadata = await _buildMetadataFromSearchItem(
         item: currentItem,
         searchItem: item,
-        lyrics: await _fetchLyricsOrNull(item),
+        metaLyrics: await _fetchLyricsOrNull(item),
       );
       if (state.stableId != stableId) {
         return;
@@ -332,15 +333,15 @@ class MetadataController extends _$MetadataController {
       server: _resolveServer(title),
     );
     for (final MetingSearchItem result in results) {
-      final String? lyrics = _normalizeLyrics(
+      final MetaLyrics? metaLyrics = _normalizeMetaLyrics(
         await metingRepository.fetchLyrics(result),
       );
-      if (lyrics != null) {
+      if (metaLyrics != null && metaLyrics.hasRenderableMainLyric) {
         return MetadataLookupResult(
           metadata: await _buildMetadataFromSearchItem(
             item: item,
             searchItem: result,
-            lyrics: lyrics,
+            metaLyrics: metaLyrics,
           ),
           searchKeyword: fallbackKeyword,
           searchResults: results,
@@ -395,7 +396,7 @@ class MetadataController extends _$MetadataController {
   Future<Metadata> _buildMetadataFromSearchItem({
     required PlayableItem item,
     required MetingSearchItem searchItem,
-    required String? lyrics,
+    required MetaLyrics? metaLyrics,
   }) async {
     final MetingRepository metingRepository = ref.read(
       metingRepositoryProvider,
@@ -413,15 +414,16 @@ class MetadataController extends _$MetadataController {
       stableId: item.stableId,
       artist: searchItem.author,
       title: searchItem.title,
-      lyrics: lyrics,
+      lyrics: metaLyrics?.preferredMainLyric,
+      metaLyrics: metaLyrics,
       albumArtUrl: albumArtUrl,
       updatedAt: DateTime.now(),
     );
   }
 
-  Future<String?> _fetchLyricsOrNull(MetingSearchItem searchItem) async {
+  Future<MetaLyrics?> _fetchLyricsOrNull(MetingSearchItem searchItem) async {
     try {
-      return _normalizeLyrics(
+      return _normalizeMetaLyrics(
         await ref.read(metingRepositoryProvider).fetchLyrics(searchItem),
       );
     } on Object {
@@ -486,6 +488,21 @@ class MetadataController extends _$MetadataController {
   String? _normalizeLyrics(String? value) {
     final String trimmed = value?.trim() ?? '';
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  MetaLyrics? _normalizeMetaLyrics(MetaLyrics? value) {
+    if (value == null) {
+      return null;
+    }
+
+    final MetaLyrics normalized = MetaLyrics(
+      lyric: _normalizeLyrics(value.lyric),
+      translatedLyric: _normalizeLyrics(value.translatedLyric),
+      romanizedLyric: _normalizeLyrics(value.romanizedLyric),
+      karaokeLyric: _normalizeLyrics(value.karaokeLyric),
+      karaokeTranslatedLyric: _normalizeLyrics(value.karaokeTranslatedLyric),
+    );
+    return normalized.hasAnyLyrics ? normalized : null;
   }
 
   String? _normalizeText(String? value) {

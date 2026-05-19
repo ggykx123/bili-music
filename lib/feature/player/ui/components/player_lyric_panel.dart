@@ -42,6 +42,7 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
 
   String? _loadedStableId;
   String? _loadedRenderableLyrics;
+  String? _loadedTranslationLyrics;
   Duration? _lastInactiveSyncedPosition;
 
   bool get _isDesktop => widget.variant == PlayerLyricPanelVariant.desktop;
@@ -203,29 +204,40 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
     );
 
     final String? rawLyrics = resolveDisplayLyrics(metadataState.metadata);
+    final String? translationLyrics = resolveDisplayTranslationLyrics(
+      metadataState.metadata,
+    );
     final String? stableId = metadataState.stableId;
     final String? renderableLyrics = PlayerUtil.buildRenderableLyrics(
       rawLyrics,
       widget.state.duration,
     );
     if (renderableLyrics == null || stableId == null) {
-      if (_loadedStableId != null || _loadedRenderableLyrics != null) {
+      if (_loadedStableId != null ||
+          _loadedRenderableLyrics != null ||
+          _loadedTranslationLyrics != null) {
         _loadedStableId = null;
         _loadedRenderableLyrics = null;
+        _loadedTranslationLyrics = null;
         _lyricController.loadLyric('');
       }
       return;
     }
 
     if (_loadedStableId == stableId &&
-        _loadedRenderableLyrics == renderableLyrics) {
+        _loadedRenderableLyrics == renderableLyrics &&
+        _loadedTranslationLyrics == translationLyrics) {
       _syncProgressIfNeeded();
       return;
     }
 
     _loadedStableId = stableId;
     _loadedRenderableLyrics = renderableLyrics;
-    _lyricController.loadLyric(renderableLyrics);
+    _loadedTranslationLyrics = translationLyrics;
+    _lyricController.loadLyric(
+      renderableLyrics,
+      translationLyric: translationLyrics,
+    );
     _syncProgressIfNeeded();
   }
 

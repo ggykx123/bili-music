@@ -1,4 +1,5 @@
 import 'package:bilimusic/feature/metadata/domain/metadata.dart';
+import 'package:bilimusic/common/domain/meta_lyrics.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 
 class MetadataLookupResult {
@@ -80,6 +81,6 @@ abstract final class MetadataResolver {
       karaokeLyric: _normalizeText(value.karaokeLyric),
       karaokeTranslatedLyric: _normalizeText(value.karaokeTranslatedLyric),
     );
-    return normalized.hasLyrics ? normalized : null;
+    return normalized.hasAnyLyrics ? normalized : null;
   }
 }
