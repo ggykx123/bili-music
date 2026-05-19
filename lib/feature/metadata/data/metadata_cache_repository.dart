@@ -9,13 +9,13 @@ const String metadataCacheBoxName = 'metadata_cache';
 
 @riverpod
 MetadataCacheRepository metadataCacheRepository(Ref ref) {
-  return MetadataCacheRepository(Hive.box<Metadata>(metadataCacheBoxName));
+  return MetadataCacheRepository(Hive.lazyBox<Metadata>(metadataCacheBoxName));
 }
 
 class MetadataCacheRepository {
   MetadataCacheRepository(this._box);
 
-  final Box<Metadata> _box;
+  final LazyBox<Metadata> _box;
 
   String buildCacheKey({required PlayableItem item}) {
     return item.stableId;
@@ -23,7 +23,7 @@ class MetadataCacheRepository {
 
   Future<Metadata?> getCachedMetadata({required PlayableItem item}) async {
     final String key = buildCacheKey(item: item);
-    final Metadata? metadata = _box.get(key);
+    final Metadata? metadata = await _box.get(key);
     if (metadata == null) {
       return null;
     }

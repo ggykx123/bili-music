@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:bilimusic/common/domain/meta_lyrics.dart';
 import 'package:bilimusic/core/hive/hive_adapters.dart';
 import 'package:bilimusic/core/hive/hive_keys.dart';
 import 'package:bilimusic/feature/favorites/data/favorites_local_repository.dart';
@@ -38,5 +37,5 @@ Future<void> initHive() async {
   await Hive.openBox<FavoriteMembership>(favoriteMembershipsBoxName);
   await Hive.openBox<PersistedPlaybackQueue>(playerQueueSnapshotBoxName);
   await Hive.openBox<RecentPlaybackEntry>(recentPlaybackBoxName);
-  await Hive.openBox<Metadata>(metadataCacheBoxName);
+  await Hive.openLazyBox<Metadata>(metadataCacheBoxName);
 }

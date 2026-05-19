@@ -42,7 +42,7 @@ class CacheUtil {
   }
 
   static Future<void> clearMetadataCache() async {
-    await Hive.box<Metadata>(metadataCacheBoxName).clear();
+    await Hive.lazyBox<Metadata>(metadataCacheBoxName).clear();
   }
 
   static Future<void> clearAllCache() async {
@@ -66,7 +66,7 @@ class CacheUtil {
   }
 
   static Future<void> removeMetadataCache(String key) async {
-    await Hive.box<Metadata>(metadataCacheBoxName).delete(key);
+    await Hive.lazyBox<Metadata>(metadataCacheBoxName).delete(key);
   }
 
   static Future<FileInfo?> getImageCache(String url) async {
@@ -81,8 +81,8 @@ class CacheUtil {
     return await lyricsCacheManager.getFileFromCache(key);
   }
 
-  static Metadata? getMetadataCache(String key) {
-    return Hive.box<Metadata>(metadataCacheBoxName).get(key);
+  static Future<Metadata?> getMetadataCache(String key) {
+    return Hive.lazyBox<Metadata>(metadataCacheBoxName).get(key);
   }
 
   static Future<int> getImageCacheSizeBytes() async {
@@ -110,9 +110,13 @@ class CacheUtil {
   }
 
   static Future<int> getMetadataCacheSizeBytes() async {
-    final Box<Metadata> box = Hive.box<Metadata>(metadataCacheBoxName);
+    final LazyBox<Metadata> box = Hive.lazyBox<Metadata>(metadataCacheBoxName);
     int total = 0;
-    for (final Metadata metadata in box.values) {
+    for (final Object key in box.keys) {
+      final Metadata? metadata = await box.get(key);
+      if (metadata == null) {
+        continue;
+      }
       total += utf8.encode(jsonEncode(metadata.toJson())).length;
     }
     return total;
