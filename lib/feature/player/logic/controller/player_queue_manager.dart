@@ -3,8 +3,6 @@ import 'dart:math';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 
-import '../../domain/player_state.dart';
-
 class PlayerQueueManager {
   PlayerQueueManager({Random? random}) : _random = random ?? Random();
 
@@ -50,10 +48,8 @@ class PlayerQueueManager {
     }
 
     return switch (mode) {
-      PlayerQueueMode.sequence || PlayerQueueMode.singleRepeat => _wrapQueueIndex(
-        currentIndex + 1,
-        queue.length,
-      ),
+      PlayerQueueMode.sequence || PlayerQueueMode.singleRepeat =>
+        _wrapQueueIndex(currentIndex + 1, queue.length),
       PlayerQueueMode.shuffle => _resolveShuffleNextIndex(
         queue: queue,
         currentIndex: currentIndex,
@@ -70,43 +66,14 @@ class PlayerQueueManager {
       return null;
     }
 
-    if (mode == PlayerQueueMode.singleRepeat) {
-      return _wrapQueueIndex(currentIndex - 1, queue.length);
-    }
-
-    if (mode == PlayerQueueMode.shuffle) {
-      _syncShuffleOrder(queue: queue, currentIndex: currentIndex);
-      final String currentId = queue[currentIndex].stableId;
-      _discardCurrentShuffleHistory(currentId);
-
-      while (_shuffleHistoryStableIds.isNotEmpty) {
-        final String previousId = _shuffleHistoryStableIds.removeLast();
-        if (previousId == currentId) {
-          continue;
-        }
-        final int? previousIndex = _queueIndexOfStableId(queue, previousId);
-        if (previousIndex != null) {
-          _syncShuffleOrder(queue: queue, currentIndex: previousIndex);
-          return previousIndex;
-        }
-      }
-
-      final int? fallbackIndex = _resolveShuffleFallbackPreviousIndex(
+    return switch (mode) {
+      PlayerQueueMode.sequence || PlayerQueueMode.singleRepeat =>
+        _wrapQueueIndex(currentIndex - 1, queue.length),
+      PlayerQueueMode.shuffle => _resolveShufflePreviousIndex(
         queue: queue,
         currentIndex: currentIndex,
-      );
-      if (fallbackIndex != null) {
-        _syncShuffleOrder(queue: queue, currentIndex: fallbackIndex);
-        return fallbackIndex;
-      }
-      return currentIndex;
-    }
-
-    if (queue.length == 1) {
-      return currentIndex;
-    }
-
-    return _wrapQueueIndex(currentIndex - 1, queue.length);
+      ),
+    };
   }
 
   int? resolveNextAvailableIndex({
@@ -273,6 +240,37 @@ class PlayerQueueManager {
           _shuffleOrderStableIds[_shuffleCursor!],
         ) ??
         currentIndex;
+  }
+
+  int _resolveShufflePreviousIndex({
+    required List<PlayableItem> queue,
+    required int currentIndex,
+  }) {
+    _syncShuffleOrder(queue: queue, currentIndex: currentIndex);
+    final String currentId = queue[currentIndex].stableId;
+    _discardCurrentShuffleHistory(currentId);
+
+    while (_shuffleHistoryStableIds.isNotEmpty) {
+      final String previousId = _shuffleHistoryStableIds.removeLast();
+      if (previousId == currentId) {
+        continue;
+      }
+      final int? previousIndex = _queueIndexOfStableId(queue, previousId);
+      if (previousIndex != null) {
+        _syncShuffleOrder(queue: queue, currentIndex: previousIndex);
+        return previousIndex;
+      }
+    }
+
+    final int? fallbackIndex = _resolveShuffleFallbackPreviousIndex(
+      queue: queue,
+      currentIndex: currentIndex,
+    );
+    if (fallbackIndex != null) {
+      _syncShuffleOrder(queue: queue, currentIndex: fallbackIndex);
+      return fallbackIndex;
+    }
+    return currentIndex;
   }
 
   void _recordShuffleHistory(String stableId) {
