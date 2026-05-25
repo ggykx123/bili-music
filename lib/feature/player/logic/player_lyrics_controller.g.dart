@@ -42,7 +42,7 @@ final class PlayerLyricsControllerProvider
 }
 
 String _$playerLyricsControllerHash() =>
-    r'8e168f1392aba25701247d9444d29a3aaa2942e5';
+    r'1e2dc431c6e3114935a381639511d6813ab86614';
 
 abstract class _$PlayerLyricsController extends $Notifier<PlayerLyricsState> {
   PlayerLyricsState build();

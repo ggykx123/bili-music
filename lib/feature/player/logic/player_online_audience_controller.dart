@@ -9,7 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'player_online_audience_controller.g.dart';
 
-@Riverpod(keepAlive: true)
+@riverpod
 class PlayerOnlineAudienceController extends _$PlayerOnlineAudienceController {
   static const Duration _pollInterval = Duration(seconds: 30);
 

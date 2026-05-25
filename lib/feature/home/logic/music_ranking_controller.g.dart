@@ -27,7 +27,7 @@ final class BiliMusicRankingRepositoryProvider
         argument: null,
         retry: null,
         name: r'biliMusicRankingRepositoryProvider',
-        isAutoDispose: false,
+        isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -56,7 +56,7 @@ final class BiliMusicRankingRepositoryProvider
 }
 
 String _$biliMusicRankingRepositoryHash() =>
-    r'7c094e50ff20b66211300c6deee25f8df39a946c';
+    r'722ee218585394403e68332b2c943d82a1563924';
 
 @ProviderFor(MusicRankingController)
 final musicRankingControllerProvider = MusicRankingControllerProvider._();

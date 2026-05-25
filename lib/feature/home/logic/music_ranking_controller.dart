@@ -7,7 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'music_ranking_controller.g.dart';
 
-@Riverpod(keepAlive: true)
+@riverpod
 BiliMusicRankingRepository biliMusicRankingRepository(Ref ref) {
   return BiliMusicRankingRepository(ref.read(biliApiClientProvider));
 }
@@ -39,9 +39,8 @@ class MusicRankingController extends _$MusicRankingController {
         .toList(growable: false);
   }
 
-  
   Future<void> refresh() async {
-    state = const AsyncLoading(); 
+    state = const AsyncLoading();
     state = await AsyncValue.guard(_fetchData);
   }
 }
