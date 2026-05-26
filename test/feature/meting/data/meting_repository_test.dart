@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bilimusic/feature/meting/data/meting_repository.dart';
+import 'package:bilimusic/common/domain/meta_lyrics.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +43,7 @@ void main() {
                   'name': '晴天',
                   'artist': <String>['周杰伦'],
                   'lyric_id': '186016',
+                  'pic_id': '109951170473693123',
                 },
               ]);
             },
@@ -58,6 +60,7 @@ void main() {
       expect(items.single.title, '晴天');
       expect(items.single.author, '周杰伦');
       expect(items.single.server, MetingServer.kugou);
+      expect(items.single.picId, '109951170473693123');
       expect(requests.single.server, MetingServer.kugou);
       expect(requests.single.keyword, '晴天');
       expect(requests.single.option['limit'], 10);
@@ -137,8 +140,12 @@ void main() {
       );
     });
 
-    test('fetchLyrics returns formatted lyric text', () async {
+    test('fetchLyrics returns formatted lyric fields', () async {
       const String lyrics = '[00:00.000] 歌词第一行';
+      const String translation = '[00:00.000] translated';
+      const String romanized = '[00:00.000] romanized';
+      const String karaoke = '[0,1000](0,500)歌(500,500)词';
+      const String karaokeTranslation = '[0,1000]逐字翻译';
       final List<_LyricRequest> requests = <_LyricRequest>[];
       final MetingRepository repository = MetingRepository(
         searchRequest: _unusedSearchRequest,
@@ -147,21 +154,31 @@ void main() {
               requests.add(_LyricRequest(server: server, id: id));
               return jsonEncode(<String, dynamic>{
                 'lyric': lyrics,
-                'tlyric': '',
+                'tlyric': translation,
+                'rlyric': romanized,
+                'klyric': karaoke,
+                'ktlyric': karaokeTranslation,
               });
             },
       );
 
-      final String result = await repository.fetchLyrics(
+      final MetaLyrics result = await repository.fetchLyrics(
         const MetingSearchItem(
           id: 'kg_hash',
           title: '晴天',
           author: '周杰伦',
           server: MetingServer.kugou,
+          picId: 'kg_pic',
         ),
       );
 
-      expect(result, lyrics);
+      expect(result.lyric, lyrics);
+      expect(result.translatedLyric, translation);
+      expect(result.romanizedLyric, romanized);
+      expect(result.karaokeLyric, karaoke);
+      expect(result.karaokeTranslatedLyric, karaokeTranslation);
+      expect(result.preferredMainLyric, karaoke);
+      expect(result.preferredTranslationLyric, karaokeTranslation);
       expect(requests.single.server, MetingServer.kugou);
       expect(requests.single.id, 'kg_hash');
     });
@@ -179,6 +196,7 @@ void main() {
             title: '晴天',
             author: '周杰伦',
             server: MetingServer.netease,
+            picId: '',
           ),
         ),
         throwsA(
@@ -189,6 +207,41 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('fetchPicture uses song id for kugou', () async {
+      final List<_PictureRequest> requests = <_PictureRequest>[];
+      final MetingRepository repository = MetingRepository(
+        searchRequest: _unusedSearchRequest,
+        lyricRequest: _unusedLyricRequest,
+        pictureRequest:
+            ({
+              required MetingServer server,
+              required String id,
+              required int size,
+            }) async {
+              requests.add(_PictureRequest(server: server, id: id, size: size));
+              return jsonEncode(<String, dynamic>{
+                'url': 'https://img.example.com/from-pic.jpg',
+              });
+            },
+      );
+
+      final String result = await repository.fetchPicture(
+        const MetingSearchItem(
+          id: 'kg_hash',
+          title: '晴天',
+          author: '周杰伦',
+          server: MetingServer.kugou,
+          picId: 'https://imge.kugou.com/stdmusic/{size}/cover.jpg',
+        ),
+        size: 480,
+      );
+
+      expect(result, 'https://img.example.com/from-pic.jpg');
+      expect(requests.single.server, MetingServer.kugou);
+      expect(requests.single.id, 'kg_hash');
+      expect(requests.single.size, 480);
     });
   });
 }
@@ -225,4 +278,16 @@ class _LyricRequest {
 
   final MetingServer server;
   final String id;
+}
+
+class _PictureRequest {
+  const _PictureRequest({
+    required this.server,
+    required this.id,
+    required this.size,
+  });
+
+  final MetingServer server;
+  final String id;
+  final int size;
 }

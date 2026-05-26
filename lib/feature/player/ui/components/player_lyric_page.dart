@@ -1,11 +1,12 @@
 import 'package:bilimusic/common/util/color_util.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
+import 'package:bilimusic/feature/metadata/ui/components/lyric_offset_sheet.dart';
+import 'package:bilimusic/feature/metadata/ui/components/lyric_search_sheet.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:bilimusic/feature/player/logic/player_progress_provider.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_panel.dart';
-import 'package:bilimusic/feature/player/ui/components/player_lyric_tools.dart';
 import 'package:bilimusic/feature/player/logic/utils/player_progress_ui_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,9 +29,7 @@ class PlayerLyricPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
 
     final Widget content = _PlayerLyricPanelHost(
       baseState: state,
@@ -51,7 +50,7 @@ class PlayerLyricPage extends ConsumerWidget {
           onSearch: () => showManualLyricSearchSheet(
             context: context,
             initialKeyword: resolveLyricSearchKeyword(
-              lyricsState: lyricsState,
+              metadataState: metadataState,
               item: item,
             ),
           ),
@@ -113,7 +112,6 @@ class _PlayerLyricToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
     final Color iconColor = activeColor;
 
     return SafeArea(

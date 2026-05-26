@@ -9,20 +9,22 @@ import 'package:bilimusic/feature/comment/domain/comment_target.dart';
 import 'package:bilimusic/feature/comment/ui/comment_page.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/favorites/ui/components/favorite_like_button.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
+import 'package:bilimusic/feature/metadata/ui/components/lyric_offset_sheet.dart';
+import 'package:bilimusic/feature/metadata/ui/components/lyric_search_sheet.dart';
 import 'package:bilimusic/feature/player/domain/audio_stream_info.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:bilimusic/feature/player/logic/player_cover_color_provider.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:bilimusic/feature/player/ui/components/desktop/play_pause_button.dart';
 import 'package:bilimusic/feature/player/ui/components/desktop/quality_attach.dart';
 import 'package:bilimusic/feature/player/ui/components/desktop/queue_mode_attach.dart';
 import 'package:bilimusic/feature/player/ui/components/player_collection_sheet.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:bilimusic/feature/player/ui/components/player_dynamic_backdrop.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_panel.dart';
-import 'package:bilimusic/feature/player/ui/components/player_lyric_tools.dart';
 import 'package:bilimusic/feature/player/ui/components/player_part_selector.dart';
 import 'package:bilimusic/feature/player/ui/components/player_queue_sheet.dart';
 import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
@@ -88,6 +90,7 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
       playerControllerProvider.notifier,
     );
     final PlayableItem? item = state.currentItem ?? widget.initialItem;
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
     final bool isFavorite = item != null
         ? ref.watch(favoritesControllerProvider).isLiked(item)
         : false;
@@ -109,17 +112,13 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
               bottom: 80,
               right: 20,
               child: _DesktopLyricToolRail(
-                enabled: item != null,
                 onSearch: item == null
                     ? null
                     : () {
-                        final PlayerLyricsState lyricsState = ref.read(
-                          playerLyricsControllerProvider,
-                        );
                         showManualLyricSearchSheet(
                           context: context,
                           initialKeyword: resolveLyricSearchKeyword(
-                            lyricsState: lyricsState,
+                            metadataState: metadataState,
                             item: item,
                           ),
                         );
@@ -138,6 +137,7 @@ class _DesktopPlayerPageState extends ConsumerState<DesktopPlayerPage> {
                   child: _DesktopPlayerHeroSection(
                     state: state,
                     item: item,
+                    metadataState: metadataState,
                     onSeek: controller.seek,
                     activeColor: coverColor,
                   ),
@@ -343,12 +343,14 @@ class _DesktopPlayerHeroSection extends ConsumerWidget {
   const _DesktopPlayerHeroSection({
     required this.state,
     required this.item,
+    required this.metadataState,
     required this.onSeek,
     this.activeColor,
   });
 
   final PlayerState state;
   final PlayableItem? item;
+  final MetadataState metadataState;
   final ValueChanged<Duration> onSeek;
   final Color? activeColor;
 
@@ -376,7 +378,12 @@ class _DesktopPlayerHeroSection extends ConsumerWidget {
                 SizedBox(
                   width: artworkSize,
                   height: artworkSize,
-                  child: _DesktopArtwork(coverUrl: item?.coverUrl),
+                  child: _DesktopArtwork(
+                    coverUrl: resolveDisplayCoverUrl(
+                      item: item,
+                      metadata: metadataState.metadata,
+                    ),
+                  ),
                 ),
                 SizedBox(width: contentGap),
                 SizedBox(
@@ -412,13 +419,8 @@ class _DesktopPlayerHeroSection extends ConsumerWidget {
 }
 
 class _DesktopLyricToolRail extends StatelessWidget {
-  const _DesktopLyricToolRail({
-    required this.enabled,
-    required this.onSearch,
-    required this.onOffset,
-  });
+  const _DesktopLyricToolRail({required this.onSearch, required this.onOffset});
 
-  final bool enabled;
   final VoidCallback? onSearch;
   final VoidCallback? onOffset;
 
@@ -436,13 +438,13 @@ class _DesktopLyricToolRail extends StatelessWidget {
               BarIconButton(
                 icon: Icons.search_rounded,
                 tooltip: '手动匹配歌词',
-                onPressed: enabled ? onSearch : null,
+                onPressed: onSearch,
               ),
               const SizedBox(height: 4),
               BarIconButton(
                 icon: Icons.hourglass_empty_rounded,
                 tooltip: '歌词偏移',
-                onPressed: enabled ? onOffset : null,
+                onPressed: onOffset,
               ),
             ],
           ),

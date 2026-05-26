@@ -1,10 +1,11 @@
 import 'package:bilimusic/common/util/color_util.dart';
 import 'package:bilimusic/common/util/platform_util.dart';
 import 'package:bilimusic/common/util/player_util.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +42,7 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
 
   String? _loadedStableId;
   String? _loadedRenderableLyrics;
+  String? _loadedTranslationLyrics;
   Duration? _lastInactiveSyncedPosition;
 
   bool get _isDesktop => widget.variant == PlayerLyricPanelVariant.desktop;
@@ -89,12 +91,10 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
-    _syncLyrics(lyricsState);
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
+    _syncLyrics(metadataState);
 
-    final Widget content = _buildContent(context, lyricsState);
+    final Widget content = _buildContent(context, metadataState);
     if (!_isDesktop) {
       return content;
     }
@@ -105,7 +105,7 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
     );
   }
 
-  Widget _buildContent(BuildContext context, PlayerLyricsState lyricsState) {
+  Widget _buildContent(BuildContext context, MetadataState metadataState) {
     final PlayableItem? item = widget.item;
     if (item == null) {
       return _PlayerLyricPanelStatus(
@@ -121,7 +121,7 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
 
     final String itemKey = item.stableId;
 
-    if (lyricsState.stableId != item.stableId) {
+    if (metadataState.stableId != item.stableId) {
       return _PlayerLyricPanelStatus(
         key: ValueKey<String>('preparing-$itemKey'),
         variant: widget.variant,
@@ -131,7 +131,7 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
       );
     }
 
-    if (lyricsState.isLoading) {
+    if (metadataState.isLoading) {
       return _PlayerLyricPanelStatus(
         key: ValueKey<String>('loading-$itemKey'),
         variant: widget.variant,
@@ -142,7 +142,7 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
       );
     }
 
-    if (lyricsState.hasLyrics) {
+    if (metadataState.hasLyrics) {
       return LayoutBuilder(
         key: ValueKey<String>('lyrics-$itemKey'),
         builder: (BuildContext context, BoxConstraints constraints) {
@@ -175,17 +175,17 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
       );
     }
 
-    if (lyricsState.hasError) {
+    if (metadataState.hasError) {
       return _PlayerLyricPanelStatus(
         key: ValueKey<String>('error-$itemKey'),
         variant: widget.variant,
         title: '歌词查询失败',
-        message: lyricsState.errorMessage!,
+        message: metadataState.errorMessage!,
         icon: Icons.error_outline_rounded,
         actionLabel: '重试',
         goSetting: true,
         onAction: () =>
-            ref.read(playerLyricsControllerProvider.notifier).retryCurrent(),
+            ref.read(metadataControllerProvider.notifier).retryCurrent(),
       );
     }
 
@@ -198,33 +198,46 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
     );
   }
 
-  void _syncLyrics(PlayerLyricsState lyricsState) {
-    _lyricController.lyricOffset = lyricsState.lyricOffsetMs;
+  void _syncLyrics(MetadataState metadataState) {
+    _lyricController.lyricOffset = resolveDisplayLyricOffsetMs(
+      metadataState.metadata,
+    );
 
-    final String? rawLyrics = lyricsState.rawLyrics;
-    final String? stableId = lyricsState.stableId;
+    final String? rawLyrics = resolveDisplayLyrics(metadataState.metadata);
+    final String? translationLyrics = resolveDisplayTranslationLyrics(
+      metadataState.metadata,
+    );
+    final String? stableId = metadataState.stableId;
     final String? renderableLyrics = PlayerUtil.buildRenderableLyrics(
       rawLyrics,
       widget.state.duration,
     );
     if (renderableLyrics == null || stableId == null) {
-      if (_loadedStableId != null || _loadedRenderableLyrics != null) {
+      if (_loadedStableId != null ||
+          _loadedRenderableLyrics != null ||
+          _loadedTranslationLyrics != null) {
         _loadedStableId = null;
         _loadedRenderableLyrics = null;
+        _loadedTranslationLyrics = null;
         _lyricController.loadLyric('');
       }
       return;
     }
 
     if (_loadedStableId == stableId &&
-        _loadedRenderableLyrics == renderableLyrics) {
+        _loadedRenderableLyrics == renderableLyrics &&
+        _loadedTranslationLyrics == translationLyrics) {
       _syncProgressIfNeeded();
       return;
     }
 
     _loadedStableId = stableId;
     _loadedRenderableLyrics = renderableLyrics;
-    _lyricController.loadLyric(renderableLyrics);
+    _loadedTranslationLyrics = translationLyrics;
+    _lyricController.loadLyric(
+      renderableLyrics,
+      translationLyric: translationLyrics,
+    );
     _syncProgressIfNeeded();
   }
 

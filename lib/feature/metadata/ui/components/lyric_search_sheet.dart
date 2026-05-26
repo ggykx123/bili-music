@@ -1,28 +1,42 @@
+import 'package:bilimusic/common/components/cached_image.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
+import 'package:bilimusic/feature/meting/data/meting_repository.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/domain/player_lyrics_state.dart';
-import 'package:bilimusic/feature/player/logic/player_lyrics_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
+// 优先元数据信息-提取信息-原标题
 String resolveLyricSearchKeyword({
-  required PlayerLyricsState lyricsState,
+  required MetadataState metadataState,
   required PlayableItem? item,
 }) {
-  return lyricsState.searchKeyword?.trim() ?? item?.title.trim() ?? '';
+  final String metadataKeyword = _metadataSearchKeyword(metadataState, item);
+  if (metadataKeyword.isNotEmpty) {
+    return metadataKeyword;
+  }
+
+  return metadataState.searchKeyword?.trim() ?? item?.title.trim() ?? '';
 }
 
-Future<void> showLyricOffsetSheet(BuildContext context) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
-    builder: (BuildContext context) {
-      return const _LyricOffsetSheet();
-    },
-  );
+String _metadataSearchKeyword(MetadataState metadataState, PlayableItem? item) {
+  final metadata = metadataState.metadata;
+  if (metadata == null || metadata.stableId != item?.stableId) {
+    return '';
+  }
+
+  final String title = metadata.title?.trim() ?? '';
+  final String artist = metadata.artist?.trim() ?? '';
+  if (title.isNotEmpty && artist.isNotEmpty) {
+    return '$title-$artist';
+  }
+  if (title.isNotEmpty) {
+    return title;
+  }
+  return artist;
 }
 
 Future<void> showManualLyricSearchSheet({
@@ -41,68 +55,6 @@ Future<void> showManualLyricSearchSheet({
   );
 }
 
-class _LyricOffsetSheet extends ConsumerWidget {
-  const _LyricOffsetSheet();
-
-  static const int _stepMs = 500;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
-    final PlayerLyricsController controller = ref.read(
-      playerLyricsControllerProvider.notifier,
-    );
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              IconButton(
-                tooltip: '歌词延后 0.5 秒',
-                onPressed: () => controller.adjustOffset(-_stepMs),
-                icon: const Icon(Icons.remove_rounded),
-              ),
-              SizedBox(
-                width: 96,
-                child: Center(
-                  child: Text(
-                    _formatOffset(lyricsState.lyricOffsetMs),
-                    style: textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: '歌词提前 0.5 秒',
-                onPressed: () => controller.adjustOffset(_stepMs),
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _formatOffset(int offsetMs) {
-  final double seconds = offsetMs / Duration.millisecondsPerSecond;
-  if (offsetMs > 0) {
-    return '+${seconds.toStringAsFixed(1)}s';
-  }
-  return '${seconds.toStringAsFixed(1)}s';
-}
-
 class _LyricSearchSheet extends ConsumerStatefulWidget {
   const _LyricSearchSheet({required this.initialKeyword});
 
@@ -114,6 +66,8 @@ class _LyricSearchSheet extends ConsumerStatefulWidget {
 
 class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
   late final TextEditingController _controller;
+  final Map<String, Future<String?>> _pictureFutureCache =
+      <String, Future<String?>>{};
   MetingServer _selectedServer = MetingServer.netease;
 
   @override
@@ -126,7 +80,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
         return;
       }
       ref
-          .read(playerLyricsControllerProvider.notifier)
+          .read(metadataControllerProvider.notifier)
           .searchManual(keyword, server: _selectedServer);
     });
   }
@@ -139,9 +93,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final PlayerLyricsState lyricsState = ref.watch(
-      playerLyricsControllerProvider,
-    );
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
     final ThemeData theme = Theme.of(context);
     final EdgeInsets insets = MediaQuery.viewInsetsOf(context);
 
@@ -194,7 +146,7 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              Expanded(child: _buildResultList(context, theme, lyricsState)),
+              Expanded(child: _buildResultList(context, theme, metadataState)),
             ],
           ),
         ),
@@ -205,44 +157,44 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
   Widget _buildResultList(
     BuildContext context,
     ThemeData theme,
-    PlayerLyricsState lyricsState,
+    MetadataState metadataState,
   ) {
-    if (lyricsState.isSearching && lyricsState.searchResults.isEmpty) {
+    if (metadataState.isSearching && metadataState.searchResults.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (lyricsState.manualSearchError != null &&
-        lyricsState.manualSearchError!.isNotEmpty) {
+    if (metadataState.manualSearchError != null &&
+        metadataState.manualSearchError!.isNotEmpty) {
       return Center(
         child: Text(
-          lyricsState.manualSearchError!,
+          metadataState.manualSearchError!,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium,
         ),
       );
     }
 
-    if (lyricsState.searchResults.isEmpty) {
+    if (metadataState.searchResults.isEmpty) {
       return Center(child: Text('没有搜索到结果', style: theme.textTheme.bodyMedium));
     }
 
     return ListView.separated(
-      itemCount: lyricsState.searchResults.length,
+      itemCount: metadataState.searchResults.length,
       separatorBuilder: (_, _) => const Divider(height: 0),
       itemBuilder: (BuildContext context, int index) {
-        final MetingSearchItem item = lyricsState.searchResults[index];
+        final MetingSearchItem item = metadataState.searchResults[index];
         final String title = item.title.trim().isEmpty
             ? '未知歌曲'
             : item.title.trim();
         final String author = item.author.trim().isEmpty
             ? '未知歌手'
             : item.author.trim();
-        return ListTile(
-          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: lyricsState.isSearching
-              ? null
-              : () => _applyResult(context, item),
+        return _LyricSearchResultTile(
+          title: title,
+          author: author,
+          pictureUrlFuture: _pictureFutureFor(item),
+          enabled: !metadataState.isSearching,
+          onTap: () => _applyResult(context, item),
         );
       },
     );
@@ -250,24 +202,77 @@ class _LyricSearchSheetState extends ConsumerState<_LyricSearchSheet> {
 
   Future<void> _applyResult(BuildContext context, MetingSearchItem item) async {
     final NavigatorState navigator = Navigator.of(context);
-    await ref
-        .read(playerLyricsControllerProvider.notifier)
-        .applyManualResult(item);
+    await ref.read(metadataControllerProvider.notifier).applyManualResult(item);
     if (!mounted) {
       return;
     }
-    final PlayerLyricsState nextState = ref.read(
-      playerLyricsControllerProvider,
-    );
+    final MetadataState nextState = ref.read(metadataControllerProvider);
     if (nextState.manualSearchError == null ||
         nextState.manualSearchError!.isEmpty) {
       navigator.pop();
     }
   }
 
+  Future<String?> _loadPictureUrl(MetingSearchItem item) async {
+    try {
+      final String url = await ref
+          .read(metingRepositoryProvider)
+          .fetchPicture(item, size: 120);
+      final String trimmedUrl = url.trim();
+      return trimmedUrl.isEmpty ? null : trimmedUrl;
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<String?> _pictureFutureFor(MetingSearchItem item) {
+    final String cacheKey =
+        '${item.server.name}:${item.id}:${item.picId ?? ''}';
+    return _pictureFutureCache.putIfAbsent(
+      cacheKey,
+      () => _loadPictureUrl(item),
+    );
+  }
+
   void _submitSearch() {
     ref
-        .read(playerLyricsControllerProvider.notifier)
+        .read(metadataControllerProvider.notifier)
         .searchManual(_controller.text, server: _selectedServer);
+  }
+}
+
+class _LyricSearchResultTile extends StatelessWidget {
+  const _LyricSearchResultTile({
+    required this.title,
+    required this.author,
+    required this.pictureUrlFuture,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String title;
+  final String author;
+  final Future<String?> pictureUrlFuture;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: FutureBuilder<String?>(
+        future: pictureUrlFuture,
+        builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
+          return CommonCachedImage(
+            imageUrl: snapshot.data,
+            width: 44,
+            height: 44,
+            borderRadius: BorderRadius.circular(8),
+          );
+        },
+      ),
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
+      onTap: enabled ? onTap : null,
+    );
   }
 }

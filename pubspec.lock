@@ -433,10 +433,11 @@ packages:
   flutter_lyric:
     dependency: "direct main"
     description:
-      name: flutter_lyric
-      sha256: "5925b073aa897a09758b473a49988e69d10c24aa038b0bf2143a307114177438"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: main
+      resolved-ref: "0cbbe38b5fca22c567c331990eebc5039d2c5412"
+      url: "https://github.com/AprDeci/flutter_lyric.git"
+    source: git
     version: "3.0.3"
   flutter_plugin_android_lifecycle:
     dependency: transitive
@@ -681,7 +682,7 @@ packages:
     source: hosted
     version: "0.7.2"
   json_annotation:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: json_annotation
       sha256: cb09e7dac6210041fad964ed7fbee004f14258b4eca4040f72d1234062ace4c8
@@ -877,7 +878,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: c1727f3d70fa571d888ebd48c5bba0d8d6ad10c5
+      resolved-ref: "7e647ebb8a4f4ba78c2f4e52030bdbb69c37c66f"
       url: "https://github.com/AprDeci/meting-dart.git"
     source: git
     version: "1.0.0"

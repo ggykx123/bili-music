@@ -1,10 +1,13 @@
 import 'package:bilimusic/common/util/toast_util.dart';
 import 'package:bilimusic/feature/comment/domain/comment_target.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:bilimusic/feature/player/logic/player_cover_color_provider.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:bilimusic/feature/player/ui/components/player_dynamic_backdrop.dart';
 import 'package:bilimusic/feature/player/ui/components/player_lyric_page.dart';
 import 'package:bilimusic/feature/player/ui/components/player_main_page.dart';
@@ -83,6 +86,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final PlayerState state = ref.watch(
       playerControllerProvider.select(_withoutPlaybackPosition),
     );
+    final MetadataState metadataState = ref.watch(metadataControllerProvider);
     final favoritesState = ref.watch(favoritesControllerProvider);
     final PlayerController playerController = ref.read(
       playerControllerProvider.notifier,
@@ -94,6 +98,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
     final Color? coverColor = ref.watch(playerCoverColorControllerProvider);
+    final String? displayCoverUrl = resolveDisplayCoverUrl(
+      item: item,
+      metadata: metadataState.metadata,
+    );
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -141,6 +149,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                               child: PlayerMainPage(
                                 state: state,
                                 item: item,
+                                displayCoverUrl: displayCoverUrl,
                                 commentCount: item?.replyCount,
                                 availableParts: availableParts,
                                 onPartTap:

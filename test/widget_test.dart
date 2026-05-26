@@ -1,5 +1,7 @@
 import 'package:bilimusic/feature/favorites/domain/favorites_state.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata_state.dart';
+import 'package:bilimusic/feature/metadata/logic/metadata_controller.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
@@ -38,6 +40,9 @@ void main() {
           ),
           playerControllerProvider.overrideWith(
             () => _FakePlayerController(item),
+          ),
+          metadataControllerProvider.overrideWith(
+            () => _FakeMetadataController(item),
           ),
         ],
         child: MaterialApp(home: PlayerPage(initialItem: item)),
@@ -100,4 +105,15 @@ class _FakePlayerController extends PlayerController {
 
   @override
   Future<void> skipToNext() async {}
+}
+
+class _FakeMetadataController extends MetadataController {
+  _FakeMetadataController(this.item);
+
+  final PlayableItem item;
+
+  @override
+  MetadataState build() {
+    return MetadataState(stableId: item.stableId, hasSearched: true);
+  }
 }

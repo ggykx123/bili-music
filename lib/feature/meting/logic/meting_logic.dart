@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:bilimusic/common/logger.dart';
 import 'package:bilimusic/core/net/bm_client.dart';
 import 'package:bilimusic/feature/meting/data/meting_repository.dart';
+import 'package:bilimusic/common/domain/meta_lyrics.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_item.dart';
 import 'package:bilimusic/feature/meting/domain/meting_search_response.dart';
 import 'package:bilimusic/feature/meting/domain/meting_server.dart';
@@ -46,8 +47,12 @@ class MetingLogic {
     return MetingSearchResponse(keyword: trimmedKeyword, results: results);
   }
 
-  Future<String> fetchLyrics(MetingSearchItem item) {
+  Future<MetaLyrics> fetchLyrics(MetingSearchItem item) {
     return _repository.fetchLyrics(item);
+  }
+
+  Future<String> fetchPicture(MetingSearchItem item, {int size = 300}) {
+    return _repository.fetchPicture(item, size: size);
   }
 
   Future<MetingSearchItem?> find({
@@ -75,7 +80,7 @@ class MetingLogic {
     if (item == null) {
       return null;
     }
-    return _repository.fetchLyrics(item);
+    return (await _repository.fetchLyrics(item)).preferredMainLyric;
   }
 
   String extractSearchKeyword(String value) {

@@ -25,7 +25,7 @@ final class PlayerOnlineAudienceControllerProvider
         argument: null,
         retry: null,
         name: r'playerOnlineAudienceControllerProvider',
-        isAutoDispose: false,
+        isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -39,7 +39,7 @@ final class PlayerOnlineAudienceControllerProvider
 }
 
 String _$playerOnlineAudienceControllerHash() =>
-    r'32061ed1325f80b1f063ea4ed9c05021533b39df';
+    r'8a286f965b897d3fe99877e2afa11a7980f975d5';
 
 abstract class _$PlayerOnlineAudienceController
     extends $AsyncNotifier<PlayerOnlineAudience?> {
