@@ -105,13 +105,22 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
 
     return Scaffold(
       body: BottomBar(
-        respectSafeArea: false,
-        fit: StackFit.expand,
-        borderRadius: BorderRadius.circular(40),
-        offset: bottomBarOffset,
-        barColor: Colors.transparent,
-        duration: _animationDuration,
-        width: screenWidth * 0.92,
+        layout: BottomBarLayout(
+          width: screenWidth * 0.92,
+          offset: bottomBarOffset,
+          borderRadius: BorderRadius.circular(40),
+          fit: StackFit.expand,
+          respectSafeArea: false,
+        ),
+        motion: const BottomBarMotion.curved(
+          duration: _animationDuration,
+          curve: _animationCurve,
+        ),
+        scrollBehavior: const BottomBarScrollBehavior(hideOnScroll: true),
+        theme: const BottomBarThemeData(
+          barDecoration: BoxDecoration(color: Colors.transparent),
+        ),
+        body: content,
         child: IgnorePointer(
           ignoring: usesCollapsedBottomChrome,
           child: AnimatedOpacity(
@@ -238,8 +247,6 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
             ),
           ),
         ),
-        body: (BuildContext context, ScrollController scrollController) =>
-            content,
       ),
     );
   }
