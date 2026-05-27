@@ -315,8 +315,8 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
       }
 
       final PlatformFile file = result.files.first;
-      Uint8List? bytes = file.bytes;
-      if (bytes == null && file.path != null) {
+      Uint8List? bytes;
+      if (file.path != null) {
         bytes = await File(file.path!).readAsBytes();
       }
       if (bytes == null) {

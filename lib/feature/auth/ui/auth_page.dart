@@ -331,7 +331,6 @@ class _QrCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       key: ValueKey<String>(qrUrl),

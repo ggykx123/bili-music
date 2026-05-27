@@ -21,7 +21,6 @@ class PlayerAudioSessionCoordinator {
     required this._pause,
   });
 
-  static const double _unknownInterruptionDuckVolume = 0.35;
 
   final PlayerAudioEngine _audioEngine;
   final AllowMixWithOthersReader _readAllowMixWithOthers;
