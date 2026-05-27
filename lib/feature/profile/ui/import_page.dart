@@ -24,6 +24,56 @@ class _ImportPageState extends ConsumerState<ImportPage> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('Import Page')));
+    return Scaffold(
+      appBar: AppBar(title: Text('导入歌单'), centerTitle: true),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 输入框
+            TextField(
+              maxLines: null,
+              minLines: 3,
+              decoration: InputDecoration(
+                labelText: '歌单链接',
+                hintText: '请输入歌单链接',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+            ),
+
+            // 导入按钮
+            const SizedBox(height: 16.0),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // 导入逻辑
+                },
+                child: Text('导入'),
+              ),
+            ),
+
+            // 提示
+            const SizedBox(height: 16.0),
+            Center(child: const ImportSupportHint()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ImportSupportHint extends StatelessWidget {
+  const ImportSupportHint({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      '支持导入网易云,酷狗,QQ音乐的歌单',
+      style: TextStyle(color: Colors.grey),
+    );
   }
 }
