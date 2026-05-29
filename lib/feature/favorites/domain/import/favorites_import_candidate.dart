@@ -1,3 +1,5 @@
+import 'package:bilimusic/feature/player/domain/playable_item.dart';
+
 class FavoritesImportCandidate {
   const FavoritesImportCandidate({
     required this.aid,
@@ -18,4 +20,16 @@ class FavoritesImportCandidate {
   final String durationText;
   final int durationMs;
   final int score;
+
+  PlayableItem toPlayableItem() {
+    return PlayableItem(
+      aid: aid,
+      bvid: bvid,
+      title: title,
+      author: author,
+      coverUrl: coverUrl,
+      page: 1,
+      durationText: durationText,
+    );
+  }
 }
