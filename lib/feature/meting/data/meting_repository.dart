@@ -85,6 +85,25 @@ class MetingRepository {
     }
   }
 
+  Future<Object?> fetchPlaylist({
+    required String playlistId,
+    MetingServer server = MetingServer.netease,
+  }) async {
+    final String trimmedPlaylistId = playlistId.trim();
+    if (trimmedPlaylistId.isEmpty) {
+      return const <Object>[];
+    }
+
+    try {
+      final Meting meting = Meting(server: server.apiValue)..format(true);
+      return meting.playlist(trimmedPlaylistId);
+    } on MetingException {
+      rethrow;
+    } on Object catch (error) {
+      throw MetingException('Meting 歌单请求失败：$error');
+    }
+  }
+
   Future<MetaLyrics> fetchLyrics(MetingSearchItem item) async {
     final String id = item.id.trim();
     if (id.isEmpty) {
