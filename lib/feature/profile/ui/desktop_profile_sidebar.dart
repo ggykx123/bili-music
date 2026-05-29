@@ -1,3 +1,4 @@
+import 'package:bilimusic/common/bm_icons.dart';
 import 'package:bilimusic/common/components/bar_icon_button.dart';
 import 'package:bilimusic/common/components/cached_avatar.dart';
 import 'package:bilimusic/common/components/cached_image.dart';
@@ -94,6 +95,7 @@ class DesktopProfileSidebar extends ConsumerWidget {
           const SizedBox(height: 22),
           _CollectionHeader(
             onAddPressed: () => _showCreateCollectionDialog(context, ref),
+            onImportPressed: () => context.push('/profile/import'),
           ),
           const SizedBox(height: 10),
           Expanded(
@@ -597,9 +599,13 @@ class _SidebarListItem extends StatelessWidget {
 }
 
 class _CollectionHeader extends StatelessWidget {
-  const _CollectionHeader({required this.onAddPressed});
+  const _CollectionHeader({
+    required this.onAddPressed,
+    required this.onImportPressed,
+  });
 
   final VoidCallback onAddPressed;
+  final VoidCallback onImportPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -613,6 +619,20 @@ class _CollectionHeader extends StatelessWidget {
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            onPressed: onImportPressed,
+            icon: Icon(
+              BmIcons.importright,
+              color: colorScheme.onSurfaceVariant,
+              size: 18,
             ),
           ),
         ),

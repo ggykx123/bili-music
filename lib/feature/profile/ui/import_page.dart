@@ -1,6 +1,7 @@
 import 'package:bilimusic/router/player_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 class ImportPage extends ConsumerStatefulWidget {
   const ImportPage({super.key});
@@ -10,6 +11,8 @@ class ImportPage extends ConsumerStatefulWidget {
 }
 
 class _ImportPageState extends ConsumerState<ImportPage> {
+  String? selectedPlatform = 'netease';
+
   @override
   void initState() {
     super.initState();
@@ -33,17 +36,32 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           children: [
             // 输入框
             TextField(
-              maxLines: null,
-              minLines: 3,
               decoration: InputDecoration(
-                labelText: '歌单链接',
-                hintText: '请输入歌单链接',
+                labelText: '歌单ID',
+                hintText: '请输入歌单ID',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
             ),
-
+            const SizedBox(height: 16.0),
+            // 选择平台 radiogroup
+            RadioGroup(
+              groupValue: selectedPlatform,
+              onChanged: (String? value) {
+                setState(() {
+                  selectedPlatform = value;
+                });
+              },
+              child: Row(
+                children: [
+                  Radio(value: 'netease'),
+                  const Text('网易云'),
+                  Radio(value: 'qq'),
+                  const Text('QQ音乐'),
+                ],
+              ),
+            ),
             // 导入按钮
             const SizedBox(height: 16.0),
             SizedBox(
@@ -58,7 +76,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
 
             // 提示
             const SizedBox(height: 16.0),
-            Center(child: const ImportSupportHint()),
+            // Center(child: const ImportSupportHint()),
           ],
         ),
       ),
@@ -72,7 +90,7 @@ class ImportSupportHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text(
-      '支持导入网易云,酷狗,QQ音乐的歌单',
+      '支持导入网易云,QQ音乐的歌单',
       style: TextStyle(color: Colors.grey),
     );
   }
