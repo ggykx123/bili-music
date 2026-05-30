@@ -322,11 +322,26 @@ class _ImportProgressCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              _statusText(state.status),
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    _statusText(state.status),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (!state.isRunning && state.matchedCount > 0) ...<Widget>[
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: isSavingImport ? null : onImportPressed,
+                    icon: const Icon(Icons.library_add_rounded),
+                    label: Text(isSavingImport ? '正在导入' : '导入歌单'),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 12),
             LinearProgressIndicator(
@@ -363,21 +378,6 @@ class _ImportProgressCard extends StatelessWidget {
               Text(
                 state.errorMessage!,
                 style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ],
-            if (!state.isRunning && state.matchedCount > 0) ...<Widget>[
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: isSavingImport ? null : onImportPressed,
-                icon: const Icon(Icons.library_add_rounded),
-                label: Text(isSavingImport ? '正在导入' : '导入歌单'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '将 ${state.matchedCount} 首匹配成功的视频保存到新歌单',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               ),
             ],
           ],
