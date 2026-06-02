@@ -112,11 +112,11 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
           fit: StackFit.expand,
           respectSafeArea: false,
         ),
-        motion: const BottomBarMotion.curved(
-          duration: _animationDuration,
-          curve: _animationCurve,
-        ),
-        scrollBehavior: const BottomBarScrollBehavior(hideOnScroll: true),
+        // motion: const BottomBarMotion.curved(
+        //   duration: _animationDuration,
+        //   curve: _animationCurve,
+        // ),
+        scrollBehavior: const BottomBarScrollBehavior(hideOnScroll: false),
         theme: const BottomBarThemeData(
           barDecoration: BoxDecoration(color: Colors.transparent),
         ),
@@ -191,52 +191,27 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(40),
-                          child: NavigationBarTheme(
-                            data: NavigationBarThemeData(
-                              backgroundColor: Colors.transparent,
-                              elevation: 0,
-                              height: BottomHeightHelper.bottomBarHeight,
-                              indicatorColor: colorScheme.primary.withValues(
-                                alpha: 0.12,
-                              ),
-                              iconTheme:
-                                  WidgetStateProperty.resolveWith<
-                                    IconThemeData
-                                  >((Set<WidgetState> states) {
-                                    if (states.contains(WidgetState.selected)) {
-                                      return IconThemeData(
-                                        color: colorScheme.primary,
-                                      );
-                                    }
-
-                                    return const IconThemeData(
-                                      color: Color(0xFF7B8698),
-                                    );
-                                  }),
-                            ),
-                            child: NavigationBar(
-                              selectedIndex: _currentIndex,
-                              onDestinationSelected: (int index) {
-                                setState(() => _currentIndex = index);
-                                widget.navigationShell.goBranch(
-                                  index,
-                                  initialLocation:
-                                      index ==
-                                      widget.navigationShell.currentIndex,
-                                );
-                              },
-                              labelBehavior:
-                                  NavigationDestinationLabelBehavior.alwaysHide,
-                              destinations: const <NavigationDestination>[
-                                NavigationDestination(
-                                  icon: Icon(Icons.home_outlined),
-                                  selectedIcon: Icon(Icons.home),
-                                  label: '首页',
+                          child: SizedBox(
+                            height: BottomHeightHelper.bottomBarHeight,
+                            child: Row(
+                              children: <Widget>[
+                                _BottomNavItem(
+                                  icon: Icons.home_outlined,
+                                  selectedIcon: Icons.home,
+                                  selected: _currentIndex == 0,
+                                  selectedColor: colorScheme.primary,
+                                  indicatorColor: colorScheme.primary
+                                      .withValues(alpha: 0.12),
+                                  onTap: () => _selectBranch(0),
                                 ),
-                                NavigationDestination(
-                                  icon: Icon(Icons.person_outlined),
-                                  selectedIcon: Icon(Icons.person),
-                                  label: '我的',
+                                _BottomNavItem(
+                                  icon: Icons.person_outlined,
+                                  selectedIcon: Icons.person,
+                                  selected: _currentIndex == 1,
+                                  selectedColor: colorScheme.primary,
+                                  indicatorColor: colorScheme.primary
+                                      .withValues(alpha: 0.12),
+                                  onTap: () => _selectBranch(1),
                                 ),
                               ],
                             ),
@@ -248,6 +223,14 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
           ),
         ),
       ),
+    );
+  }
+
+  void _selectBranch(int index) {
+    setState(() => _currentIndex = index);
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 
@@ -319,5 +302,51 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
         location == '/profile/player' ||
         location == '/profile/import' ||
         location == '/search/player';
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.selected,
+    required this.selectedColor,
+    required this.indicatorColor,
+    required this.onTap,
+  });
+
+  static const Color _unselectedColor = Color(0xFF7B8698);
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final bool selected;
+  final Color selectedColor;
+  final Color indicatorColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(40),
+        child: Center(
+          child: AnimatedContainer(
+            duration: _ScaffoldWithNavBarState._animationDuration,
+            curve: _ScaffoldWithNavBarState._animationCurve,
+            width: 64,
+            height: 32,
+            decoration: BoxDecoration(
+              color: selected ? indicatorColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Icon(
+              selected ? selectedIcon : icon,
+              color: selected ? selectedColor : _unselectedColor,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
