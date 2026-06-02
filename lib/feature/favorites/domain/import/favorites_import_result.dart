@@ -17,5 +17,23 @@ class FavoritesImportResult {
   final String? message;
   final DateTime finishedAt;
 
-  bool get isMatched => candidate != null && status == FavoritesImportStatus.completed;
+  bool get isMatched =>
+      candidate != null && status == FavoritesImportStatus.completed;
+
+  FavoritesImportResult copyWith({
+    FavoritesImportStatus? status,
+    FavoritesImportCandidate? candidate,
+    String? message,
+    DateTime? finishedAt,
+    bool clearCandidate = false,
+    bool clearMessage = false,
+  }) {
+    return FavoritesImportResult(
+      track: track,
+      status: status ?? this.status,
+      candidate: clearCandidate ? null : candidate ?? this.candidate,
+      message: clearMessage ? null : message ?? this.message,
+      finishedAt: finishedAt ?? this.finishedAt,
+    );
+  }
 }
