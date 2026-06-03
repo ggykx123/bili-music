@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:bilimusic/core/hive/hive_adapters.dart';
 import 'package:bilimusic/core/hive/hive_keys.dart';
 import 'package:bilimusic/feature/favorites/data/favorites_local_repository.dart';
+import 'package:bilimusic/feature/favorites/data/favorites_remote_cache_repository.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_collection.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_entry.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_membership.dart';
@@ -22,6 +23,7 @@ Future<void> initHive() async {
     Hive
       ..init(directory.path)
       ..registerAdapter(FavoriteCollectionAdapter())
+      ..registerAdapter(FavoriteCollectionSourceAdapter())
       ..registerAdapter(FavoriteEntryAdapter())
       ..registerAdapter(FavoriteMembershipAdapter())
       ..registerAdapter(PlayerQueueModeAdapter())
@@ -35,6 +37,9 @@ Future<void> initHive() async {
   await Hive.openBox<FavoriteCollection>(favoriteCollectionsBoxName);
   await Hive.openBox<FavoriteEntry>(favoriteEntriesBoxName);
   await Hive.openBox<FavoriteMembership>(favoriteMembershipsBoxName);
+  await Hive.openBox<FavoriteCollection>(remoteFavoriteCollectionsBoxName);
+  await Hive.openBox<FavoriteEntry>(remoteFavoriteEntriesBoxName);
+  await Hive.openBox<FavoriteMembership>(remoteFavoriteMembershipsBoxName);
   await Hive.openBox<PersistedPlaybackQueue>(playerQueueSnapshotBoxName);
   await Hive.openBox<RecentPlaybackEntry>(recentPlaybackBoxName);
   await Hive.openLazyBox<Metadata>(metadataCacheBoxName);
