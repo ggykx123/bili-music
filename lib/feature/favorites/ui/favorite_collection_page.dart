@@ -38,8 +38,11 @@ class _FavoriteCollectionPageState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   int _nextRemotePageNumber = 2;
+  int _remoteRefreshRequestId = 0;
   bool _remoteHasMore = false;
   bool _isLoadingRemotePage = false;
+  bool _remoteRefreshFailed = false;
+  bool _remoteLoadMoreFailed = false;
 
   @override
   void initState() {
@@ -58,21 +61,31 @@ class _FavoriteCollectionPageState
   }
 
   void _refreshRemoteCollectionItems() {
+    if (_isLoadingRemotePage) {
+      return;
+    }
+
+    final String collectionId = widget.collectionId;
+    final int requestId = ++_remoteRefreshRequestId;
     unawaited(
       Future<void>.microtask(() async {
         try {
           if (mounted) {
             setState(() {
               _isLoadingRemotePage = true;
+              _remoteRefreshFailed = false;
             });
           }
           final BiliFavoriteCollectionPage? page = await ref
               .read(favoritesControllerProvider.notifier)
-              .refreshRemoteCollectionItems(collectionId: widget.collectionId);
-          if (!mounted || page == null) {
+              .refreshRemoteCollectionItems(collectionId: collectionId);
+          if (!_canApplyRemoteRefreshResult(collectionId, requestId) ||
+              page == null) {
             return;
           }
           setState(() {
+            _remoteRefreshFailed = false;
+            _remoteLoadMoreFailed = false;
             _remoteHasMore = page.hasMore;
             _nextRemotePageNumber = page.pageNumber + 1;
           });
@@ -82,8 +95,14 @@ class _FavoriteCollectionPageState
             error,
             stackTrace,
           );
+          if (_canApplyRemoteRefreshResult(collectionId, requestId)) {
+            setState(() {
+              _remoteRefreshFailed = true;
+            });
+            ToastUtil.show('网络歌单同步失败，请稍后重试');
+          }
         } finally {
-          if (mounted) {
+          if (_canApplyRemoteRefreshResult(collectionId, requestId)) {
             setState(() {
               _isLoadingRemotePage = false;
             });
@@ -95,12 +114,18 @@ class _FavoriteCollectionPageState
 
   void _resetRemotePagingState() {
     _nextRemotePageNumber = 2;
+    _remoteRefreshRequestId++;
     _remoteHasMore = false;
     _isLoadingRemotePage = false;
+    _remoteRefreshFailed = false;
+    _remoteLoadMoreFailed = false;
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
-    if (_searchQuery.isNotEmpty || !_remoteHasMore || _isLoadingRemotePage) {
+    if (_searchQuery.isNotEmpty ||
+        !_remoteHasMore ||
+        _isLoadingRemotePage ||
+        _remoteLoadMoreFailed) {
       return false;
     }
     if (notification.metrics.extentAfter > 320) {
@@ -115,6 +140,8 @@ class _FavoriteCollectionPageState
       return;
     }
 
+    final String collectionId = widget.collectionId;
+    final int pageNumber = _nextRemotePageNumber;
     unawaited(
       Future<void>.microtask(() async {
         try {
@@ -123,17 +150,19 @@ class _FavoriteCollectionPageState
           }
           setState(() {
             _isLoadingRemotePage = true;
+            _remoteLoadMoreFailed = false;
           });
           final BiliFavoriteCollectionPage? page = await ref
               .read(favoritesControllerProvider.notifier)
               .loadMoreRemoteCollectionItems(
-                collectionId: widget.collectionId,
-                pageNumber: _nextRemotePageNumber,
+                collectionId: collectionId,
+                pageNumber: pageNumber,
               );
-          if (!mounted || page == null) {
+          if (!mounted || widget.collectionId != collectionId || page == null) {
             return;
           }
           setState(() {
+            _remoteLoadMoreFailed = false;
             _remoteHasMore = page.hasMore;
             _nextRemotePageNumber = page.pageNumber + 1;
           });
@@ -143,8 +172,14 @@ class _FavoriteCollectionPageState
             error,
             stackTrace,
           );
+          if (mounted && widget.collectionId == collectionId) {
+            setState(() {
+              _remoteLoadMoreFailed = true;
+            });
+            ToastUtil.show('加载更多失败，请重试');
+          }
         } finally {
-          if (mounted) {
+          if (mounted && widget.collectionId == collectionId) {
             setState(() {
               _isLoadingRemotePage = false;
             });
@@ -152,6 +187,12 @@ class _FavoriteCollectionPageState
         }
       }),
     );
+  }
+
+  bool _canApplyRemoteRefreshResult(String collectionId, int requestId) {
+    return mounted &&
+        widget.collectionId == collectionId &&
+        _remoteRefreshRequestId == requestId;
   }
 
   @override
@@ -231,7 +272,12 @@ class _FavoriteCollectionPageState
     return Scaffold(
       backgroundColor: colorScheme.surface.withValues(alpha: 0.4),
       appBar: AppBar(title: Text(resolvedCollection.name)),
-      body: items.isEmpty
+      body: items.isEmpty && _remoteRefreshFailed
+          ? _RemoteCollectionErrorState(
+              isRetrying: _isLoadingRemotePage,
+              onRetry: _refreshRemoteCollectionItems,
+            )
+          : items.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -399,6 +445,19 @@ class _FavoriteCollectionPageState
   }
 
   Widget _buildListFooter(ThemeData theme) {
+    if (_remoteLoadMoreFailed) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: _loadMoreRemoteCollectionItems,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('加载失败，重试'),
+          ),
+        ),
+      );
+    }
+
     if (_remoteHasMore || _isLoadingRemotePage) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
@@ -572,6 +631,61 @@ class _FavoriteCollectionPageState
           ),
         );
       },
+    );
+  }
+}
+
+class _RemoteCollectionErrorState extends StatelessWidget {
+  const _RemoteCollectionErrorState({
+    required this.isRetrying,
+    required this.onRetry,
+  });
+
+  final bool isRetrying;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colorScheme = theme.colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.wifi_off_rounded, color: colorScheme.primary, size: 42),
+            const SizedBox(height: 16),
+            Text(
+              '网络歌单同步失败',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '请检查网络后重试。',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextButton.icon(
+              onPressed: isRetrying ? null : onRetry,
+              icon: isRetrying
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(isRetrying ? '同步中' : '重试'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

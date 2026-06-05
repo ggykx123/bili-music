@@ -3,6 +3,7 @@ import 'package:bilimusic/common/components/bottom_page_spacer.dart';
 import 'package:bilimusic/common/components/cached_image.dart';
 import 'package:bilimusic/common/components/searchBar.dart';
 import 'package:bilimusic/common/util/toast_util.dart';
+import 'package:bilimusic/core/bili/session/bili_session.dart';
 import 'package:bilimusic/core/bili/session/bili_session_controller.dart';
 import 'package:bilimusic/feature/auth/data/bili_auth_repository.dart';
 import 'package:bilimusic/feature/auth/logic/bili_auth_controller.dart';
@@ -26,10 +27,28 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   bool _showAllCollections = false;
+  bool _didRefreshRemoteCollections = false;
+  bool _isRefreshingRemoteCollections = false;
   _FavoriteListTab _selectedTab = _FavoriteListTab.remote;
 
   @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_refreshRemoteCollectionsOnEnter);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.listen<BiliSession?>(biliSessionControllerProvider, (
+      BiliSession? previous,
+      BiliSession? next,
+    ) {
+      if ((previous?.isLoggedIn ?? false) || !(next?.isLoggedIn ?? false)) {
+        return;
+      }
+      _didRefreshRemoteCollections = false;
+      _refreshRemoteCollectionsOnEnter();
+    });
     ref.watch(biliSessionControllerProvider);
     final FavoritesState favoritesState = ref.watch(
       favoritesControllerProvider,
@@ -237,6 +256,32 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       return;
     }
     _showMessage('已导入“${collection.name}”');
+  }
+
+  Future<void> _refreshRemoteCollectionsOnEnter() async {
+    if (_didRefreshRemoteCollections || _isRefreshingRemoteCollections) {
+      return;
+    }
+
+    final BiliSession? session = ref.read(biliSessionControllerProvider);
+    if (!(session?.isLoggedIn ?? false)) {
+      return;
+    }
+
+    _didRefreshRemoteCollections = true;
+    _isRefreshingRemoteCollections = true;
+    try {
+      await ref
+          .read(favoritesControllerProvider.notifier)
+          .refreshRemoteCollections();
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('网络歌单同步失败，请稍后重试');
+    } finally {
+      _isRefreshingRemoteCollections = false;
+    }
   }
 
   Future<void> _showRemoteAddOptions(BuildContext context) async {

@@ -31,9 +31,27 @@ class DesktopProfileSidebar extends ConsumerStatefulWidget {
 
 class _DesktopProfileSidebarState extends ConsumerState<DesktopProfileSidebar> {
   _FavoriteListTab _selectedTab = _FavoriteListTab.remote;
+  bool _didRefreshRemoteCollections = false;
+  bool _isRefreshingRemoteCollections = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_refreshRemoteCollectionsOnEnter);
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<BiliSession?>(biliSessionControllerProvider, (
+      BiliSession? previous,
+      BiliSession? next,
+    ) {
+      if ((previous?.isLoggedIn ?? false) || !(next?.isLoggedIn ?? false)) {
+        return;
+      }
+      _didRefreshRemoteCollections = false;
+      _refreshRemoteCollectionsOnEnter();
+    });
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
     final FavoritesState favoritesState = ref.watch(
@@ -289,6 +307,32 @@ class _DesktopProfileSidebarState extends ConsumerState<DesktopProfileSidebar> {
       return;
     }
     ToastUtil.show('已导入“${collection.name}”');
+  }
+
+  Future<void> _refreshRemoteCollectionsOnEnter() async {
+    if (_didRefreshRemoteCollections || _isRefreshingRemoteCollections) {
+      return;
+    }
+
+    final BiliSession? session = ref.read(biliSessionControllerProvider);
+    if (!(session?.isLoggedIn ?? false)) {
+      return;
+    }
+
+    _didRefreshRemoteCollections = true;
+    _isRefreshingRemoteCollections = true;
+    try {
+      await ref
+          .read(favoritesControllerProvider.notifier)
+          .refreshRemoteCollections();
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      ToastUtil.show('网络歌单同步失败，请稍后重试');
+    } finally {
+      _isRefreshingRemoteCollections = false;
+    }
   }
 
   Future<void> _showRemoteAddOptions(
