@@ -1,5 +1,5 @@
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/bili/session/bili_session.dart';
+import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/feature/player/data/bili_player_repository.dart';
 import 'package:bilimusic/feature/player/domain/audio_stream_info.dart';
 import 'package:bilimusic/feature/player/domain/player_audio_quality_preference.dart';
@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('BiliPlayerRepository', () {
     test('resolvePreferredPart enriches item from view response', () async {
-      final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+      final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
         responses: <String, Map<String, dynamic>>{
           '/x/web-interface/view': _viewResponse(),
         },
@@ -39,7 +39,7 @@ void main() {
     test(
       'resolveAudioStream parses dash audio and selects auto highest',
       () async {
-        final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+        final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
           responses: <String, Map<String, dynamic>>{
             '/x/web-interface/view': _viewResponse(),
             '/x/player/wbi/playurl': _playurlResponse(),
@@ -97,7 +97,7 @@ void main() {
     test(
       'resolveAudioStream selects configured quality when available',
       () async {
-        final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+        final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
           responses: <String, Map<String, dynamic>>{
             '/x/web-interface/view': _viewResponse(),
             '/x/player/wbi/playurl': _playurlResponse(),
@@ -127,7 +127,7 @@ void main() {
     test(
       'resolveAudioStream falls back to highest when configured quality is missing',
       () async {
-        final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+        final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
           responses: <String, Map<String, dynamic>>{
             '/x/web-interface/view': _viewResponse(),
             '/x/player/wbi/playurl': _playurlResponse(
@@ -154,7 +154,7 @@ void main() {
     test(
       'resolveAudioStream lets explicit quality override default preference',
       () async {
-        final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+        final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
           responses: <String, Map<String, dynamic>>{
             '/x/web-interface/view': _viewResponse(),
             '/x/player/wbi/playurl': _playurlResponse(),
@@ -177,7 +177,7 @@ void main() {
     test(
       'resolveAudioStream includes flac candidate for Hi-Res preference',
       () async {
-        final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+        final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
           responses: <String, Map<String, dynamic>>{
             '/x/web-interface/view': _viewResponse(),
             '/x/player/wbi/playurl': _playurlResponse(
@@ -210,7 +210,7 @@ void main() {
     );
 
     test('resolveAudioStream rejects malformed view response', () async {
-      final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+      final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
         responses: <String, Map<String, dynamic>>{
           '/x/web-interface/view': <String, dynamic>{'data': 'bad'},
         },
@@ -228,7 +228,7 @@ void main() {
     });
 
     test('resolveAudioStream rejects response without audio streams', () async {
-      final _FakeBiliApiClient apiClient = _FakeBiliApiClient(
+      final _FakeBiliHttpClient apiClient = _FakeBiliHttpClient(
         responses: <String, Map<String, dynamic>>{
           '/x/web-interface/view': _viewResponse(),
           '/x/player/wbi/playurl': _playurlResponse(
@@ -345,11 +345,14 @@ Map<String, dynamic> _audioEntry({
   };
 }
 
-class _FakeBiliApiClient implements BiliApiClient {
-  _FakeBiliApiClient({required this.responses});
+class _FakeBiliHttpClient implements BiliHttpClient {
+  _FakeBiliHttpClient({required this.responses});
 
   final Map<String, Map<String, dynamic>> responses;
   final List<_Request> requests = <_Request>[];
+
+  @override
+  BiliSession? get currentSession => null;
 
   @override
   Future<Map<String, dynamic>> getJson(
@@ -357,6 +360,7 @@ class _FakeBiliApiClient implements BiliApiClient {
     Map<String, dynamic>? queryParameters,
     bool requiresAuth = false,
     bool requiresWbi = false,
+    BiliRequestMode mode = BiliRequestMode.defaultCookie,
     Options? options,
   }) async {
     requests.add(
@@ -365,6 +369,7 @@ class _FakeBiliApiClient implements BiliApiClient {
         queryParameters: queryParameters ?? const <String, dynamic>{},
         requiresAuth: requiresAuth,
         requiresWbi: requiresWbi,
+        mode: mode,
         options: options,
       ),
     );
@@ -377,6 +382,28 @@ class _FakeBiliApiClient implements BiliApiClient {
   }
 
   @override
+  Future<Response<T>> get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    BiliRequestMode mode = BiliRequestMode.defaultCookie,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Response<T>> post<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -386,6 +413,7 @@ class _Request {
     required this.queryParameters,
     required this.requiresAuth,
     required this.requiresWbi,
+    required this.mode,
     required this.options,
   });
 
@@ -393,5 +421,6 @@ class _Request {
   final Map<String, dynamic> queryParameters;
   final bool requiresAuth;
   final bool requiresWbi;
+  final BiliRequestMode mode;
   final Options? options;
 }
