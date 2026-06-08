@@ -1,6 +1,5 @@
 import 'package:bilimusic/common/util/json_util.dart';
 import 'package:bilimusic/common/logger.dart';
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/bili/session/bili_session.dart';
 import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/feature/favorites/domain/bili_favorite_collection_page.dart';
@@ -10,13 +9,9 @@ import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:dio/dio.dart';
 
 class BiliFavoritesRemoteRepository {
-  const BiliFavoritesRemoteRepository({
-    required this.apiClient,
-    required this.client,
-  });
+  const BiliFavoritesRemoteRepository({required this.client});
 
-  final BiliApiClient apiClient;
-  final BiliClient client;
+  final BiliHttpClient client;
   static final AppLogger _logger = AppLogger('BiliFavorites');
 
   Future<List<FavoriteCollection>> fetchCreatedCollections({

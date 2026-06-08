@@ -49,7 +49,6 @@ class BiliSession with _$BiliSession {
       (imgKey?.isNotEmpty ?? false) && (subKey?.isNotEmpty ?? false);
   bool get isReady => isLoggedIn && hasProfile && hasWbiKeys;
 
-
   BiliSession clearAuth() {
     return BiliSession(
       sessData: '',
@@ -57,6 +56,8 @@ class BiliSession with _$BiliSession {
       dedeUserId: '',
       refreshToken: '',
       cookie: cookie,
+      imgKey: imgKey,
+      subKey: subKey,
       buvid3: buvid3,
     );
   }

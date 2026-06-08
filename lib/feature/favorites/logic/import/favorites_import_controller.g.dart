@@ -42,7 +42,7 @@ final class FavoritesImportControllerProvider
 }
 
 String _$favoritesImportControllerHash() =>
-    r'22a213c21e46a97883adb15b34709a797c02f1b6';
+    r'd1c0e23cb1bab91b6ac0c49a72e37b1ba59a316e';
 
 abstract class _$FavoritesImportController
     extends $Notifier<FavoritesImportState> {

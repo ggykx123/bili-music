@@ -62,7 +62,7 @@ class FavoritesImportRepository {
       return const <SearchResultItem>[];
     }
     return _biliSearchRepository
-        .searchVideos(trimmedKeyword)
+        .searchVideosAnonymously(trimmedKeyword)
         .then((value) => value.items);
   }
 

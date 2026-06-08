@@ -1,7 +1,7 @@
 import 'package:bilimusic/common/util/format_util.dart';
 import 'package:bilimusic/common/util/json_util.dart';
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/bili/session/bili_session.dart';
+import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/core/net/net_config.dart';
 import 'package:dio/dio.dart';
 import 'package:bilimusic/feature/player/domain/audio_stream_info.dart';
@@ -12,13 +12,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final Provider<BiliPlayerRepository> biliPlayerRepositoryProvider =
     Provider<BiliPlayerRepository>((Ref ref) {
-      return BiliPlayerRepository(ref.read(biliApiClientProvider));
+      return BiliPlayerRepository(ref.read(biliClientProvider.notifier));
     });
 
 class BiliPlayerRepository {
-  const BiliPlayerRepository(this._apiClient);
+  const BiliPlayerRepository(this._client);
 
-  final BiliApiClient _apiClient;
+  final BiliHttpClient _client;
 
   Future<PlayerOnlineAudience> fetchOnlineAudience({
     required int cid,
@@ -36,7 +36,7 @@ class BiliPlayerRepository {
       );
     }
 
-    final Map<String, dynamic> json = await _apiClient.getJson(
+    final Map<String, dynamic> json = await _client.getJson(
       '/x/player/online/total',
       queryParameters: <String, dynamic>{
         if (aid > 0) 'aid': aid,
@@ -86,7 +86,7 @@ class BiliPlayerRepository {
     final _VideoViewInfo viewInfo = await _fetchVideoView(item);
     final _VideoPageInfo pageInfo = viewInfo.resolvePage(item);
 
-    final Map<String, dynamic> json = await _apiClient
+    final Map<String, dynamic> json = await _client
         .getJson(
           '/x/player/wbi/playurl',
           queryParameters: <String, dynamic>{
@@ -172,7 +172,7 @@ class BiliPlayerRepository {
   }
 
   Future<_VideoViewInfo> _fetchVideoView(PlayableItem item) async {
-    final Map<String, dynamic> json = await _apiClient
+    final Map<String, dynamic> json = await _client
         .getJson(
           '/x/web-interface/view',
           queryParameters: <String, dynamic>{

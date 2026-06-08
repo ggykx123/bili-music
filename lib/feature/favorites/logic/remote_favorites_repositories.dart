@@ -1,4 +1,3 @@
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/feature/favorites/data/bili_favorites_remote_repository.dart';
 import 'package:bilimusic/feature/favorites/data/favorites_remote_cache_repository.dart';
@@ -26,7 +25,6 @@ FavoritesRemoteCacheRepository favoritesRemoteCacheRepository(Ref ref) {
 @riverpod
 BiliFavoritesRemoteRepository biliFavoritesRemoteRepository(Ref ref) {
   return BiliFavoritesRemoteRepository(
-    apiClient: ref.read(biliApiClientProvider),
     client: ref.read(biliClientProvider.notifier),
   );
 }

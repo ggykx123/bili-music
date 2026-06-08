@@ -55,4 +55,4 @@ final class BiliCommentRepositoryProvider
 }
 
 String _$biliCommentRepositoryHash() =>
-    r'ca41ba26d7aaa845b391f3e2188b4fc354ecf552';
+    r'18ee500070f8a3e0bb8d80989d1318846bde46ba';

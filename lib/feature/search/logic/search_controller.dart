@@ -1,4 +1,3 @@
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/feature/search/data/bili_search_repository.dart';
 import 'package:bilimusic/feature/search/data/search_history_store.dart';
@@ -12,10 +11,7 @@ part 'search_controller.g.dart';
 
 @riverpod
 BiliSearchRepository biliSearchRepository(Ref ref) {
-  return BiliSearchRepository(
-    ref.read(biliApiClientProvider),
-    ref.read(biliClientProvider.notifier),
-  );
+  return BiliSearchRepository(ref.read(biliClientProvider.notifier));
 }
 
 @riverpod

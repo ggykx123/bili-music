@@ -56,7 +56,7 @@ final class BiliMusicRankingRepositoryProvider
 }
 
 String _$biliMusicRankingRepositoryHash() =>
-    r'722ee218585394403e68332b2c943d82a1563924';
+    r'ec0f5aba824dc1374d9f2a64eec9cd21cb9a3ae0';
 
 @ProviderFor(MusicRankingController)
 final musicRankingControllerProvider = MusicRankingControllerProvider._();

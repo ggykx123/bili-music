@@ -1,7 +1,6 @@
 import 'package:bilimusic/common/util/format_util.dart';
 import 'package:bilimusic/common/util/json_util.dart';
 import 'package:bilimusic/common/util/url_util.dart';
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:dio/dio.dart';
 import 'package:bilimusic/feature/search/domain/search_page_result.dart';
@@ -9,21 +8,47 @@ import 'package:bilimusic/feature/search/domain/search_result_item.dart';
 import 'package:bilimusic/feature/search/domain/search_sort.dart';
 
 class BiliSearchRepository {
-  const BiliSearchRepository(this._apiClient, this._client);
+  const BiliSearchRepository(this._client);
 
   static const int _defaultPageSize = 20;
   static const String _suggestEndpoint =
       'https://s.search.bilibili.com/main/suggest';
 
-  final BiliApiClient _apiClient;
-  final BiliClient _client;
+  final BiliHttpClient _client;
 
   Future<SearchPageResult> searchVideos(
     String keyword, {
     int page = 1,
     SearchSort sort = SearchSort.comprehensive,
   }) async {
-    final Map<String, dynamic> json = await _apiClient.getJson(
+    return _searchVideos(
+      keyword,
+      page: page,
+      sort: sort,
+      mode: BiliRequestMode.defaultCookie,
+    );
+  }
+
+  Future<SearchPageResult> searchVideosAnonymously(
+    String keyword, {
+    int page = 1,
+    SearchSort sort = SearchSort.comprehensive,
+  }) async {
+    return _searchVideos(
+      keyword,
+      page: page,
+      sort: sort,
+      mode: BiliRequestMode.anonymous,
+    );
+  }
+
+  Future<SearchPageResult> _searchVideos(
+    String keyword, {
+    required int page,
+    required SearchSort sort,
+    required BiliRequestMode mode,
+  }) async {
+    final Map<String, dynamic> json = await _client.getJson(
       '/x/web-interface/wbi/search/type',
       queryParameters: <String, dynamic>{
         'search_type': 'video',
@@ -32,6 +57,7 @@ class BiliSearchRepository {
         'page': page,
       },
       requiresWbi: true,
+      mode: mode,
     );
 
     final Map<String, dynamic> data = asStringKeyedMap(json['data']);

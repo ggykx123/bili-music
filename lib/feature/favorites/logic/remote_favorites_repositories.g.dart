@@ -109,4 +109,4 @@ final class BiliFavoritesRemoteRepositoryProvider
 }
 
 String _$biliFavoritesRemoteRepositoryHash() =>
-    r'64e9fd66c18f775b2f585ee5f9b9c406bc51b04f';
+    r'613fcbbc195136ca5abf12849d057c401d3f04d0';

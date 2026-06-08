@@ -9,7 +9,6 @@ import 'package:bilimusic/feature/favorites/domain/import/favorites_import_statu
 import 'package:bilimusic/feature/favorites/domain/import/favorites_import_track.dart';
 import 'package:bilimusic/feature/favorites/logic/import/favorites_import_matcher.dart';
 import 'package:bilimusic/feature/favorites/logic/import/favorites_import_state.dart';
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
 import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/feature/meting/data/meting_repository.dart';
 import 'package:bilimusic/feature/search/data/bili_search_repository.dart';
@@ -23,7 +22,6 @@ class FavoritesImportController extends _$FavoritesImportController {
   late final FavoritesImportRepository _repository = FavoritesImportRepository(
     metingRepository: ref.read(metingRepositoryProvider),
     biliSearchRepository: BiliSearchRepository(
-      ref.read(biliApiClientProvider),
       ref.read(biliClientProvider.notifier),
     ),
   );

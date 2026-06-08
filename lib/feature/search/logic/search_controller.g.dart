@@ -55,7 +55,7 @@ final class BiliSearchRepositoryProvider
 }
 
 String _$biliSearchRepositoryHash() =>
-    r'369d51f4e5e772bd9f588b2dcbd425628db4df04';
+    r'9b63a831e13b9292e076221a455613f5a2d39f71';
 
 @ProviderFor(SearchPageController)
 final searchPageControllerProvider = SearchPageControllerProvider._();

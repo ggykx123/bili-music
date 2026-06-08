@@ -2,8 +2,7 @@ import 'package:bilimusic/common/util/json_util.dart';
 import 'package:bilimusic/common/util/url_util.dart';
 import 'package:bilimusic/common/logger.dart';
 import 'package:bilimusic/core/bili/session/bili_session.dart';
-import 'package:bilimusic/core/bili/session/bili_session_controller.dart';
-import 'package:bilimusic/core/bili/net/bili_api_client.dart';
+import 'package:bilimusic/core/net/bili_client.dart';
 import 'package:bilimusic/feature/comment/domain/comment_item.dart';
 import 'package:bilimusic/feature/comment/domain/comment_page_result.dart';
 import 'package:bilimusic/feature/comment/domain/comment_reply_page_result.dart';
@@ -16,17 +15,17 @@ part 'bilibili_comment_repository.g.dart';
 
 @riverpod
 BiliCommentRepository biliCommentRepository(Ref ref) {
-  return BiliCommentRepository(ref.read(biliApiClientProvider));
+  return BiliCommentRepository(ref.read(biliClientProvider.notifier));
 }
 
 class BiliCommentRepository {
-  const BiliCommentRepository(this._apiClient);
+  const BiliCommentRepository(this._client);
 
   static const String _mainPath = '/x/v2/reply/wbi/main';
   static const String _replyPath = '/x/v2/reply/reply';
   static final AppLogger _logger = AppLogger('BiliCommentRepository');
 
-  final BiliApiClient _apiClient;
+  final BiliHttpClient _client;
 
   Future<CommentPageResult> fetchRootComments(
     CommentTarget target, {
@@ -35,9 +34,7 @@ class BiliCommentRepository {
     CommentSort sort = CommentSort.time,
     bool includeHot = true,
   }) async {
-    final BiliSession? session = _apiClient.ref.read(
-      biliSessionControllerProvider,
-    );
+    final BiliSession? session = _client.currentSession;
     final bool shouldSignWithWbi = session?.isReady ?? false;
 
     _logger.d(
@@ -75,7 +72,7 @@ class BiliCommentRepository {
       'pageSize=$pageSize',
     );
 
-    final Map<String, dynamic> json = await _apiClient.getJson(
+    final Map<String, dynamic> json = await _client.getJson(
       _replyPath,
       queryParameters: <String, dynamic>{
         'type': target.type,
@@ -91,7 +88,9 @@ class BiliCommentRepository {
     final Map<String, dynamic> pageInfo = _asMapOrEmpty(data['page']);
     final Map<String, dynamic> config = _asMapOrEmpty(data['config']);
     final Map<String, dynamic> root = _asMap(data['root']);
-    final List<Map<String, dynamic>> rawReplyMaps = _asListOfMaps(data['replies']);
+    final List<Map<String, dynamic>> rawReplyMaps = _asListOfMaps(
+      data['replies'],
+    );
 
     final CommentItem rootItem = _mapCommentItem(root, isTop: true);
     final List<CommentItem> items = _mapCommentList(
@@ -100,7 +99,8 @@ class BiliCommentRepository {
     );
     final int resolvedPage = _readPositiveInt(pageInfo['num']) ?? page;
     final int resolvedPageSize = _readPositiveInt(pageInfo['size']) ?? pageSize;
-    final int totalCount = _readNonNegativeInt(pageInfo['count']) ?? items.length;
+    final int totalCount =
+        _readNonNegativeInt(pageInfo['count']) ?? items.length;
     final bool hasMore = resolvedPage * resolvedPageSize < totalCount;
 
     _logger.d(
@@ -146,7 +146,7 @@ class BiliCommentRepository {
       'requiresWbi=$shouldSignWithWbi',
     );
 
-    final Map<String, dynamic> json = await _apiClient.getJson(
+    final Map<String, dynamic> json = await _client.getJson(
       _mainPath,
       queryParameters: queryParameters,
       requiresAuth: false,
