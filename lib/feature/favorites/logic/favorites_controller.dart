@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:bilimusic/core/bili/session/bili_session.dart';
 import 'package:bilimusic/core/bili/session/bili_session_controller.dart';
 import 'package:bilimusic/feature/favorites/data/bili_favorites_remote_repository.dart';
@@ -25,6 +27,7 @@ class FavoritesController extends _$FavoritesController {
   late final BiliFavoritesRemoteRepository _remoteRepository = ref.read(
     biliFavoritesRemoteRepositoryProvider,
   );
+  final Random _remoteImportRandom = Random();
 
   @override
   FavoritesState build() {
@@ -340,8 +343,13 @@ class FavoritesController extends _$FavoritesController {
     required String collectionId,
     required Iterable<PlayableItem> items,
   }) async {
-    if (!state.hasCollection(collectionId)) {
+    final FavoriteCollection? collection = _collectionById(collectionId);
+    if (collection == null) {
       return 0;
+    }
+
+    if (collection.isRemote) {
+      return _addItemsToRemoteCollection(collection: collection, items: items);
     }
 
     final DateTime now = DateTime.now();
@@ -371,6 +379,37 @@ class FavoritesController extends _$FavoritesController {
 
     await _touchCollection(collectionId: collectionId, updatedAt: now);
     state = _loadState();
+    return addedCount;
+  }
+
+  Future<int> _addItemsToRemoteCollection({
+    required FavoriteCollection collection,
+    required Iterable<PlayableItem> items,
+  }) async {
+    final Map<String, PlayableItem> uniqueItems = <String, PlayableItem>{};
+    for (final PlayableItem item in items) {
+      uniqueItems[item.stableId] = item;
+    }
+
+    int addedCount = 0;
+    for (final PlayableItem item in uniqueItems.values) {
+      if (state.isItemInCollection(
+        collectionId: collection.id,
+        itemId: item.stableId,
+      )) {
+        continue;
+      }
+      await Future<void>.delayed(
+        Duration(milliseconds: 1000 + _remoteImportRandom.nextInt(201)),
+      );
+      final bool added = await _addToRemoteCollection(
+        collection: collection,
+        item: item,
+      );
+      if (added) {
+        addedCount++;
+      }
+    }
     return addedCount;
   }
 
