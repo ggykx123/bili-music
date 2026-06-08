@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:bilimusic/common/bm_icons.dart';
 import 'package:bilimusic/common/components/bottom_page_spacer.dart';
 import 'package:bilimusic/common/components/cached_image.dart';
 import 'package:bilimusic/common/logger.dart';
 import 'package:bilimusic/common/util/player_util.dart';
 import 'package:bilimusic/common/util/toast_util.dart';
+import 'package:bilimusic/feature/favorites/domain/bili_favorite_collection_page.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_collection.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_entry.dart';
 import 'package:bilimusic/feature/favorites/domain/favorites_state.dart';
@@ -34,13 +37,162 @@ class _FavoriteCollectionPageState
     extends ConsumerState<FavoriteCollectionPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  int _nextRemotePageNumber = 2;
+  int _remoteRefreshRequestId = 0;
+  bool _remoteHasMore = false;
+  bool _isLoadingRemotePage = false;
+  bool _remoteRefreshFailed = false;
+  bool _remoteLoadMoreFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshRemoteCollectionItems();
+  }
 
   @override
   void didUpdateWidget(covariant FavoriteCollectionPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.collectionId != widget.collectionId) {
       _resetSearchState();
+      _resetRemotePagingState();
+      _refreshRemoteCollectionItems();
     }
+  }
+
+  void _refreshRemoteCollectionItems() {
+    if (_isLoadingRemotePage) {
+      return;
+    }
+
+    final String collectionId = widget.collectionId;
+    final int requestId = ++_remoteRefreshRequestId;
+    unawaited(
+      Future<void>.microtask(() async {
+        try {
+          if (mounted) {
+            setState(() {
+              _isLoadingRemotePage = true;
+              _remoteRefreshFailed = false;
+            });
+          }
+          final BiliFavoriteCollectionPage? page = await ref
+              .read(favoritesControllerProvider.notifier)
+              .refreshRemoteCollectionItems(collectionId: collectionId);
+          if (!_canApplyRemoteRefreshResult(collectionId, requestId) ||
+              page == null) {
+            return;
+          }
+          setState(() {
+            _remoteRefreshFailed = false;
+            _remoteLoadMoreFailed = false;
+            _remoteHasMore = page.hasMore;
+            _nextRemotePageNumber = page.pageNumber + 1;
+          });
+        } on Object catch (error, stackTrace) {
+          FavoriteCollectionPage._logger.w(
+            'Failed to refresh remote collection',
+            error,
+            stackTrace,
+          );
+          if (_canApplyRemoteRefreshResult(collectionId, requestId)) {
+            setState(() {
+              _remoteRefreshFailed = true;
+            });
+            ToastUtil.show('网络歌单同步失败，请稍后重试');
+          }
+        } finally {
+          if (_canApplyRemoteRefreshResult(collectionId, requestId)) {
+            setState(() {
+              _isLoadingRemotePage = false;
+            });
+          }
+        }
+      }),
+    );
+  }
+
+  void _resetRemotePagingState() {
+    _nextRemotePageNumber = 2;
+    _remoteRefreshRequestId++;
+    _remoteHasMore = false;
+    _isLoadingRemotePage = false;
+    _remoteRefreshFailed = false;
+    _remoteLoadMoreFailed = false;
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (_searchQuery.isNotEmpty ||
+        !_remoteHasMore ||
+        _isLoadingRemotePage ||
+        _remoteLoadMoreFailed) {
+      return false;
+    }
+    if (notification.metrics.extentAfter > 320) {
+      return false;
+    }
+    _loadMoreRemoteCollectionItems();
+    return false;
+  }
+
+  void _loadMoreRemoteCollectionItems() {
+    if (_isLoadingRemotePage || !_remoteHasMore) {
+      return;
+    }
+
+    final String collectionId = widget.collectionId;
+    final int pageNumber = _nextRemotePageNumber;
+    unawaited(
+      Future<void>.microtask(() async {
+        try {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _isLoadingRemotePage = true;
+            _remoteLoadMoreFailed = false;
+          });
+          final BiliFavoriteCollectionPage? page = await ref
+              .read(favoritesControllerProvider.notifier)
+              .loadMoreRemoteCollectionItems(
+                collectionId: collectionId,
+                pageNumber: pageNumber,
+              );
+          if (!mounted || widget.collectionId != collectionId || page == null) {
+            return;
+          }
+          setState(() {
+            _remoteLoadMoreFailed = false;
+            _remoteHasMore = page.hasMore;
+            _nextRemotePageNumber = page.pageNumber + 1;
+          });
+        } on Object catch (error, stackTrace) {
+          FavoriteCollectionPage._logger.w(
+            'Failed to load more remote collection items',
+            error,
+            stackTrace,
+          );
+          if (mounted && widget.collectionId == collectionId) {
+            setState(() {
+              _remoteLoadMoreFailed = true;
+            });
+            ToastUtil.show('加载更多失败，请重试');
+          }
+        } finally {
+          if (mounted && widget.collectionId == collectionId) {
+            setState(() {
+              _isLoadingRemotePage = false;
+            });
+          }
+        }
+      }),
+    );
+  }
+
+  bool _canApplyRemoteRefreshResult(String collectionId, int requestId) {
+    return mounted &&
+        widget.collectionId == collectionId &&
+        _remoteRefreshRequestId == requestId;
   }
 
   @override
@@ -120,7 +272,12 @@ class _FavoriteCollectionPageState
     return Scaffold(
       backgroundColor: colorScheme.surface.withValues(alpha: 0.4),
       appBar: AppBar(title: Text(resolvedCollection.name)),
-      body: items.isEmpty
+      body: items.isEmpty && _remoteRefreshFailed
+          ? _RemoteCollectionErrorState(
+              isRetrying: _isLoadingRemotePage,
+              onRetry: _refreshRemoteCollectionItems,
+            )
+          : items.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -177,111 +334,146 @@ class _FavoriteCollectionPageState
                 const BottomPageSpacer.overlay(),
               ],
             )
-          : ListView.builder(
-              padding: EdgeInsets.zero,
-              itemCount: visibleItems.length + 2,
-              itemBuilder: (BuildContext context, int index) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                    child: FavoriteCollectionSearchField(
-                      controller: _searchController,
-                      query: _searchQuery,
-                      onChanged: _updateSearchQuery,
-                      onClear: _clearSearchQuery,
+          : NotificationListener<ScrollNotification>(
+              onNotification: _handleScrollNotification,
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: visibleItems.length + 2,
+                itemBuilder: (BuildContext context, int index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                      child: FavoriteCollectionSearchField(
+                        controller: _searchController,
+                        query: _searchQuery,
+                        onChanged: _updateSearchQuery,
+                        onClear: _clearSearchQuery,
+                      ),
+                    );
+                  }
+
+                  if (index == visibleItems.length + 1) {
+                    return _buildListFooter(theme);
+                  }
+
+                  final int itemIndex = index - 1;
+                  final FavoriteEntry item = visibleItems[itemIndex];
+                  return Material(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 0,
+                      ),
+                      leading: CommonCachedImage(
+                        imageUrl: item.coverUrl,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        borderRadius: BorderRadius.circular(8),
+                        fallbackIcon: Icons.music_note_rounded,
+                        iconColor: primary,
+                        backgroundColor: primary.withValues(alpha: 0.14),
+                      ),
+                      title: Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.5,
+                        ),
+                        _buildSubtitle(item),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Row(
+                        spacing: 0,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                            tooltip: '播放',
+                            onPressed: () async {
+                              await _playCollectionItem(
+                                context,
+                                ref,
+                                collectionName: resolvedCollection.name,
+                                queueItems: queueItems,
+                                index: itemIndex,
+                              );
+                            },
+                            icon: const Icon(BmIcons.addPlaylist),
+                          ),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                            tooltip: '更多',
+                            onPressed: () async {
+                              await _showItemActionSheet(
+                                context,
+                                ref,
+                                collection: resolvedCollection,
+                                item: item,
+                              );
+                            },
+                            icon: const Icon(Icons.more_vert_outlined),
+                          ),
+                        ],
+                      ),
+                      onTap: () async {
+                        await _playCollectionItem(
+                          context,
+                          ref,
+                          collectionName: resolvedCollection.name,
+                          queueItems: queueItems,
+                          index: itemIndex,
+                        );
+                      },
                     ),
                   );
-                }
-
-                if (index == visibleItems.length + 1) {
-                  return const BottomPageSpacer.overlay();
-                }
-
-                final int itemIndex = index - 1;
-                final FavoriteEntry item = visibleItems[itemIndex];
-                return Material(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 0,
-                    ),
-                    leading: CommonCachedImage(
-                      imageUrl: item.coverUrl,
-                      width: 44,
-                      height: 44,
-                      fit: BoxFit.cover,
-                      borderRadius: BorderRadius.circular(8),
-                      fallbackIcon: Icons.music_note_rounded,
-                      iconColor: primary,
-                      backgroundColor: primary.withValues(alpha: 0.14),
-                    ),
-                    title: Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
-                      _buildSubtitle(item),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: Row(
-                      spacing: 0,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                          tooltip: '播放',
-                          onPressed: () async {
-                            await _playCollectionItem(
-                              context,
-                              ref,
-                              collectionName: resolvedCollection.name,
-                              queueItems: queueItems,
-                              index: itemIndex,
-                            );
-                          },
-                          icon: const Icon(BmIcons.addPlaylist),
-                        ),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                          tooltip: '更多',
-                          onPressed: () async {
-                            await _showItemActionSheet(
-                              context,
-                              ref,
-                              collection: resolvedCollection,
-                              item: item,
-                            );
-                          },
-                          icon: const Icon(Icons.more_vert_outlined),
-                        ),
-                      ],
-                    ),
-                    onTap: () async {
-                      await _playCollectionItem(
-                        context,
-                        ref,
-                        collectionName: resolvedCollection.name,
-                        queueItems: queueItems,
-                        index: itemIndex,
-                      );
-                    },
-                  ),
-                );
-              },
+                },
+              ),
             ),
     );
+  }
+
+  Widget _buildListFooter(ThemeData theme) {
+    if (_remoteLoadMoreFailed) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: _loadMoreRemoteCollectionItems,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('加载失败，重试'),
+          ),
+        ),
+      );
+    }
+
+    if (_remoteHasMore || _isLoadingRemotePage) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ),
+      );
+    }
+    return const BottomPageSpacer.overlay();
   }
 
   String _buildSubtitle(FavoriteEntry item) {
@@ -439,6 +631,61 @@ class _FavoriteCollectionPageState
           ),
         );
       },
+    );
+  }
+}
+
+class _RemoteCollectionErrorState extends StatelessWidget {
+  const _RemoteCollectionErrorState({
+    required this.isRetrying,
+    required this.onRetry,
+  });
+
+  final bool isRetrying;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colorScheme = theme.colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.wifi_off_rounded, color: colorScheme.primary, size: 42),
+            const SizedBox(height: 16),
+            Text(
+              '网络歌单同步失败',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '请检查网络后重试。',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextButton.icon(
+              onPressed: isRetrying ? null : onRetry,
+              icon: isRetrying
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(isRetrying ? '同步中' : '重试'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

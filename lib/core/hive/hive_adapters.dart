@@ -10,6 +10,7 @@ import 'package:hive_ce/hive.dart';
 
 @GenerateAdapters(<AdapterSpec<dynamic>>[
   AdapterSpec<FavoriteCollection>(),
+  AdapterSpec<FavoriteCollectionSource>(),
   AdapterSpec<FavoriteEntry>(),
   AdapterSpec<FavoriteMembership>(),
   AdapterSpec<PlayerQueueMode>(),

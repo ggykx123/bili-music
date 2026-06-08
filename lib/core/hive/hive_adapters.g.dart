@@ -19,7 +19,15 @@ class FavoriteCollectionAdapter extends TypeAdapter<FavoriteCollection> {
     return FavoriteCollection(
       id: fields[0] as String,
       name: fields[1] as String,
-      isSystem: fields[2] as bool,
+      source: fields[5] == null
+          ? FavoriteCollectionSource.local
+          : fields[5] as FavoriteCollectionSource,
+      isSystem: fields[2] == null ? false : fields[2] as bool,
+      remoteId: fields[6] as String?,
+      coverUrl: fields[7] as String?,
+      itemCount: fields[8] == null ? 0 : (fields[8] as num).toInt(),
+      isManagedByApp: fields[9] == null ? false : fields[9] as bool,
+      lastSyncedAt: fields[10] as DateTime?,
       createdAt: fields[3] as DateTime,
       updatedAt: fields[4] as DateTime,
     );
@@ -28,7 +36,7 @@ class FavoriteCollectionAdapter extends TypeAdapter<FavoriteCollection> {
   @override
   void write(BinaryWriter writer, FavoriteCollection obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +46,19 @@ class FavoriteCollectionAdapter extends TypeAdapter<FavoriteCollection> {
       ..writeByte(3)
       ..write(obj.createdAt)
       ..writeByte(4)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(5)
+      ..write(obj.source)
+      ..writeByte(6)
+      ..write(obj.remoteId)
+      ..writeByte(7)
+      ..write(obj.coverUrl)
+      ..writeByte(8)
+      ..write(obj.itemCount)
+      ..writeByte(9)
+      ..write(obj.isManagedByApp)
+      ..writeByte(10)
+      ..write(obj.lastSyncedAt);
   }
 
   @override
@@ -497,6 +517,44 @@ class MetadataAdapter extends TypeAdapter<Metadata> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is MetadataAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class FavoriteCollectionSourceAdapter
+    extends TypeAdapter<FavoriteCollectionSource> {
+  @override
+  final typeId = 10;
+
+  @override
+  FavoriteCollectionSource read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return FavoriteCollectionSource.local;
+      case 1:
+        return FavoriteCollectionSource.remote;
+      default:
+        return FavoriteCollectionSource.local;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, FavoriteCollectionSource obj) {
+    switch (obj) {
+      case FavoriteCollectionSource.local:
+        writer.writeByte(0);
+      case FavoriteCollectionSource.remote:
+        writer.writeByte(1);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FavoriteCollectionSourceAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
