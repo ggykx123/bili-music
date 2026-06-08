@@ -30,6 +30,9 @@ void main() {
     if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(FavoriteCollectionAdapter());
     }
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(FavoriteCollectionSourceAdapter());
+    }
     if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(FavoriteEntryAdapter());
     }

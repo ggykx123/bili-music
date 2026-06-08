@@ -276,7 +276,7 @@ void main() {
       );
     });
 
-    test('single repeat keeps the current index', () {
+    test('single repeat keeps manual queue navigation available', () {
       final PlayerQueueManager manager = PlayerQueueManager(random: Random(42));
       final List<PlayableItem> queue = _queue(3);
 
@@ -286,7 +286,7 @@ void main() {
           currentIndex: 1,
           mode: PlayerQueueMode.singleRepeat,
         ),
-        1,
+        2,
       );
       expect(
         manager.resolvePreviousIndex(
@@ -294,7 +294,7 @@ void main() {
           currentIndex: 1,
           mode: PlayerQueueMode.singleRepeat,
         ),
-        1,
+        0,
       );
     });
   });
