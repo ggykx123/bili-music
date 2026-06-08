@@ -12,6 +12,7 @@ abstract class PlayableItem with _$PlayableItem {
     required String title,
     required String author,
     required String coverUrl,
+    int? ownerMid,
     int? cid,
     int? page,
     String? pageTitle,

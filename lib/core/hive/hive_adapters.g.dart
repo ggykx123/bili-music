@@ -239,6 +239,7 @@ class PersistedPlayableItemAdapter extends TypeAdapter<PersistedPlayableItem> {
       title: fields[2] as String,
       author: fields[3] as String,
       coverUrl: fields[4] as String,
+      ownerMid: (fields[19] as num?)?.toInt(),
       cid: (fields[5] as num?)?.toInt(),
       page: (fields[6] as num?)?.toInt(),
       pageTitle: fields[7] as String?,
@@ -259,7 +260,7 @@ class PersistedPlayableItemAdapter extends TypeAdapter<PersistedPlayableItem> {
   @override
   void write(BinaryWriter writer, PersistedPlayableItem obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.aid)
       ..writeByte(1)
@@ -297,7 +298,9 @@ class PersistedPlayableItemAdapter extends TypeAdapter<PersistedPlayableItem> {
       ..writeByte(17)
       ..write(obj.description)
       ..writeByte(18)
-      ..write(obj.replyCount);
+      ..write(obj.replyCount)
+      ..writeByte(19)
+      ..write(obj.ownerMid);
   }
 
   @override

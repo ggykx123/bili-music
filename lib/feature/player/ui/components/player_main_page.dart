@@ -15,6 +15,7 @@ import 'package:bilimusic/feature/player/logic/utils/player_progress_ui_helpers.
 import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 class PlayerMainPage extends ConsumerWidget {
@@ -75,18 +76,19 @@ class PlayerMainPage extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        // 封面和标题
         _RepaintSection(
           child: _PlayerHeroAndTitle(
             artworkSize: artworkSize,
             item: item,
             displayCoverUrl: displayCoverUrl,
-            state: state,
             isFavorite: isFavorite,
             onlineAudienceLabel: onlineAudienceLabel,
             onFavoriteToggle: onFavoriteToggle,
           ),
         ),
         const Spacer(),
+        // 底部工具栏
         Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -140,7 +142,6 @@ class _PlayerHeroAndTitle extends StatelessWidget {
     required this.artworkSize,
     required this.item,
     required this.displayCoverUrl,
-    required this.state,
     required this.isFavorite,
     required this.onlineAudienceLabel,
     required this.onFavoriteToggle,
@@ -149,7 +150,6 @@ class _PlayerHeroAndTitle extends StatelessWidget {
   final double artworkSize;
   final PlayableItem? item;
   final String? displayCoverUrl;
-  final PlayerState state;
   final bool isFavorite;
   final String? onlineAudienceLabel;
   final VoidCallback? onFavoriteToggle;
@@ -173,12 +173,11 @@ class _PlayerHeroAndTitle extends StatelessWidget {
         const SizedBox(height: 28),
         PlayerTrackHeader(
           title: item?.title ?? '还没有选择播放内容',
-          subtitle: item == null
-              ? '从搜索页选一条视频或音频后，这里会显示当前播放信息。'
-              : buildPlayerSubtitle(item!.author, state),
+          subtitle: item == null ? '从搜索页选一条视频或音频后，这里会显示当前播放信息。' : item!.author,
           isFavoriteEnabled: item != null,
           isFavorite: isFavorite,
           onFavoriteToggle: onFavoriteToggle,
+          onSubtitleTap: _buildUpTapHandler(context, item),
         ),
         if (onlineAudienceLabel != null) ...<Widget>[
           const SizedBox(height: 12),
@@ -186,6 +185,14 @@ class _PlayerHeroAndTitle extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  VoidCallback? _buildUpTapHandler(BuildContext context, PlayableItem? item) {
+    final int? ownerMid = item?.ownerMid;
+    if (ownerMid == null || ownerMid <= 0) {
+      return null;
+    }
+    return () => context.push('/up/$ownerMid');
   }
 }
 

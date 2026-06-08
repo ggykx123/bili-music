@@ -81,7 +81,7 @@ types:
         index: 2
   PersistedPlayableItem:
     typeId: 5
-    nextIndex: 19
+    nextIndex: 20
     fields:
       aid:
         index: 0
@@ -121,6 +121,8 @@ types:
         index: 17
       replyCount:
         index: 18
+      ownerMid:
+        index: 19
   PersistedPlaybackQueue:
     typeId: 6
     nextIndex: 6

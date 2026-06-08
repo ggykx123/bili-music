@@ -204,6 +204,7 @@ class BiliPlayerRepository {
       pages: pages,
       title: data['title'] as String? ?? item.title,
       author: _readOwnerName(data['owner']) ?? item.author,
+      ownerMid: _readOwnerMid(data['owner']) ?? item.ownerMid,
       description: _readDescription(data) ?? item.description,
       playCountText:
           _formatCount((stat['view'] as num? ?? 0).toInt()) ??
@@ -397,6 +398,12 @@ class BiliPlayerRepository {
     return name.isEmpty ? null : name;
   }
 
+  int? _readOwnerMid(dynamic value) {
+    final Map<String, dynamic> owner = _asMapOrEmpty(value);
+    final int mid = (owner['mid'] as num? ?? 0).toInt();
+    return mid > 0 ? mid : null;
+  }
+
   String? _readDescription(Map<String, dynamic> data) {
     final String description =
         data['desc'] as String? ?? data['description'] as String? ?? '';
@@ -463,6 +470,7 @@ class _VideoViewInfo {
     required this.pages,
     required this.title,
     required this.author,
+    this.ownerMid,
     this.description,
     this.playCountText,
     this.danmakuCountText,
@@ -478,6 +486,7 @@ class _VideoViewInfo {
   final List<_VideoPageInfo> pages;
   final String title;
   final String author;
+  final int? ownerMid;
   final String? description;
   final String? playCountText;
   final String? danmakuCountText;
@@ -519,6 +528,7 @@ class _VideoViewInfo {
     return item.copyWith(
       title: title,
       author: author,
+      ownerMid: ownerMid,
       cid: pageInfo.cid,
       page: pageInfo.page,
       pageTitle: pageInfo.part,

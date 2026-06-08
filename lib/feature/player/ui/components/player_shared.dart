@@ -9,6 +9,7 @@ class PlayerTrackHeader extends StatelessWidget {
     required this.isFavoriteEnabled,
     required this.isFavorite,
     required this.onFavoriteToggle,
+    this.onSubtitleTap,
   });
 
   final String title;
@@ -16,6 +17,7 @@ class PlayerTrackHeader extends StatelessWidget {
   final bool isFavoriteEnabled;
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onSubtitleTap;
 
   @override
   Widget build(BuildContext context) {
@@ -41,15 +43,21 @@ class PlayerTrackHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.62),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  height: 1.35,
+              InkWell(
+                onTap: onSubtitleTap,
+                borderRadius: BorderRadius.circular(8),
+                child: Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: onSubtitleTap == null
+                        ? colorScheme.onSurface.withValues(alpha: 0.62)
+                        : colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    height: 1.35,
+                  ),
                 ),
               ),
             ],
@@ -141,9 +149,7 @@ class PlayerBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: Colors.grey,
-        ),
+        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
       ),
     );
   }
