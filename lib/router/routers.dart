@@ -41,15 +41,6 @@ final List<Map<String, dynamic>> mobileTabs = [
   {
     'path': '/home',
     'builder': (context, state) => const HomePage(),
-    'routes': <RouteBase>[
-      GoRoute(
-        path: 'player',
-        builder: (context, state) {
-          final PlayableItem? item = state.extra as PlayableItem?;
-          return PlayerPage(initialItem: item);
-        },
-      ),
-    ],
     'icon': HugeIcon(icon: HugeIcons.strokeRoundedHome07),
     'label': '首页',
   },
@@ -67,36 +58,68 @@ final List<Map<String, dynamic>> mobileTabs = [
               : FavoriteCollectionPage(collectionId: collectionId);
         },
       ),
-      GoRoute(
-        path: 'player',
-        builder: (context, state) {
-          final PlayableItem? item = state.extra as PlayableItem?;
-          return PlayerPage(initialItem: item);
-        },
-      ),
     ],
     'icon': HugeIcon(icon: HugeIcons.strokeRoundedUser),
     'label': '我的',
   },
+];
+
+final List<Map<String, dynamic>> mobileHiddenBranches = [
+  {'path': '/search', 'builder': (context, state) => const SearchPage()},
   {
-    'path': '/search',
-    'builder': (context, state) => const SearchPage(),
+    'path': '/player',
+    'builder': (context, state) {
+      final PlayableItem? item = state.extra as PlayableItem?;
+      return PlayerPage(initialItem: item);
+    },
+  },
+  {
+    'path': '/comments',
+    'builder': (context, state) {
+      final CommentTarget target = state.extra! as CommentTarget;
+      return CommentPage(target: target);
+    },
+  },
+  {
+    'path': '/settings',
+    'builder': (context, state) => const SettingPage(),
     'routes': <RouteBase>[
       GoRoute(
+        path: 'theme',
+        builder: (context, state) => const ThemeSettingsPage(),
+      ),
+      GoRoute(
+        path: 'cache',
+        builder: (context, state) => const CacheSettingsPage(),
+      ),
+      GoRoute(
         path: 'player',
-        builder: (context, state) {
-          final PlayableItem? item = state.extra as PlayableItem?;
-          return PlayerPage(initialItem: item);
-        },
+        builder: (context, state) => const PlayerSettingsPage(),
+      ),
+      GoRoute(
+        path: 'app-transfer',
+        builder: (context, state) => const AppTransferPage(),
+      ),
+      GoRoute(
+        path: 'hotkeys',
+        builder: (context, state) => const HotkeySettingsPage(),
+      ),
+      GoRoute(
+        path: 'about',
+        builder: (context, state) => const AboutSettingsPage(),
       ),
     ],
-    'icon': Icons.search,
-    'label': '搜索',
   },
 ];
 
 final List<Map<String, dynamic>> desktopTabs = [
   ...mobileTabs,
+  {
+    'path': '/search',
+    'builder': (context, state) => const SearchPage(),
+    'icon': Icons.search,
+    'label': '搜索',
+  },
   {
     'path': '/settings',
     'builder': (context, state) => const SettingPage(),
@@ -140,49 +163,6 @@ final List<Map<String, dynamic>> desktopTabs = [
 
 final List<RouteBase> mobileRoutes = [
   GoRoute(path: '/auth', builder: (context, state) => const AuthPage()),
-  GoRoute(
-    path: '/comments',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) {
-      final CommentTarget target = state.extra! as CommentTarget;
-      return CommentPage(target: target);
-    },
-  ),
-  GoRoute(
-    path: '/settings',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const SettingPage(),
-  ),
-  GoRoute(
-    path: '/settings/theme',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const ThemeSettingsPage(),
-  ),
-  GoRoute(
-    path: '/settings/cache',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const CacheSettingsPage(),
-  ),
-  GoRoute(
-    path: '/settings/player',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const PlayerSettingsPage(),
-  ),
-  GoRoute(
-    path: '/settings/app-transfer',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const AppTransferPage(),
-  ),
-  GoRoute(
-    path: '/settings/hotkeys',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const HotkeySettingsPage(),
-  ),
-  GoRoute(
-    path: '/settings/about',
-    parentNavigatorKey: _rootNavigatorKey,
-    builder: (context, state) => const AboutSettingsPage(),
-  ),
   StatefulShellRoute.indexedStack(
     parentNavigatorKey: _rootNavigatorKey,
     builder: (context, state, navigationShell) {
@@ -192,7 +172,7 @@ final List<RouteBase> mobileRoutes = [
       );
     },
     branches: [
-      ...mobileTabs.map(
+      ...<Map<String, dynamic>>[...mobileTabs, ...mobileHiddenBranches].map(
         (tab) => StatefulShellBranch(
           routes: [
             GoRoute(
