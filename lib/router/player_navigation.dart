@@ -1,11 +1,14 @@
 import 'package:bilimusic/common/logger.dart';
+import 'package:bilimusic/common/util/platform_util.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
+import 'package:bilimusic/feature/player/ui/player_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 
 const String playerRoutePath = '/player';
+const String playerNativeRouteName = 'native-player';
 
 final AppLogger _logger = AppLogger('PlayerNavigation');
 final ValueNotifier<bool> _playerPageVisible = ValueNotifier<bool>(false);
@@ -26,10 +29,51 @@ Future<void> openPlayerPage(BuildContext context, {PlayableItem? item}) async {
 
   _playerPageOpening = true;
   try {
-    await context.push(playerRoutePath, extra: item);
+    if (PlatformUtil.isDesktop) {
+      await context.push(playerRoutePath, extra: item);
+      return;
+    }
+    markPlayerPageVisible();
+    await Navigator.of(context).push<void>(_createMobilePlayerRoute(item));
   } finally {
+    if (PlatformUtil.isMobile) {
+      markPlayerPageHidden();
+    }
     _playerPageOpening = false;
   }
+}
+
+// 适用navigator进入player页面 不进入主路由栈
+Route<void> _createMobilePlayerRoute(PlayableItem? item) {
+  return PageRouteBuilder<void>(
+    settings: const RouteSettings(name: playerNativeRouteName),
+    transitionDuration: const Duration(milliseconds: 250),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (BuildContext context, Animation<double> animation, _) {
+      return PlayerPage(initialItem: item);
+    },
+    transitionsBuilder:
+        (
+          BuildContext context,
+          Animation<double> animation,
+          Animation<double> secondaryAnimation,
+          Widget child,
+        ) {
+          final Animation<Offset> offsetAnimation =
+              Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                ),
+              );
+
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+  );
 }
 
 void markPlayerPageVisible() {
@@ -40,11 +84,7 @@ void markPlayerPageHidden() {
   _setPlayerPageVisible(false, logLabel: 'markPlayerPageHidden');
 }
 
-bool get isPlayerPageVisible => _playerPageVisible.value;
-
 void _setPlayerPageVisible(bool value, {required String logLabel}) {
-  _playerPageOpening = false;
-
   void applyVisibility() {
     if (_playerPageVisible.value == value) {
       return;
