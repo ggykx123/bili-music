@@ -103,7 +103,7 @@ class VideoCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                               color: colorScheme.onSurface,
                               height: 1.3,
                               fontSize: 14,

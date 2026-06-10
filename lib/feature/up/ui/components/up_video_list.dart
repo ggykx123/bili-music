@@ -79,7 +79,7 @@ class UpVideoList extends ConsumerWidget {
                 coverUrl: cardData.coverUrl,
                 primaryMeta: cardData.primaryMeta,
                 secondaryMeta: cardData.secondaryMeta,
-                tag: '投稿',
+                // tag: '投稿',
               ),
               onTap: () => PlayerUtil.playItemAndOpenPlayer(
                 context,
