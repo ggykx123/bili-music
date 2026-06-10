@@ -102,7 +102,6 @@ class CollectionDetailPage extends ConsumerWidget {
                       coverUrl: cardData.coverUrl,
                       primaryMeta: cardData.primaryMeta,
                       secondaryMeta: cardData.secondaryMeta,
-                      tag: '合集',
                     ),
                     onTap: () => _playFrom(context, ref, data, itemIndex),
                   ),
