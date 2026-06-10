@@ -1,4 +1,5 @@
 import 'package:bilimusic/common/components/bottom_page_spacer.dart';
+import 'package:bilimusic/common/util/color_util.dart';
 import 'package:bilimusic/feature/search/ui/components/highlight_text.dart';
 import 'package:flutter/material.dart';
 
@@ -176,18 +177,21 @@ class SearchHistorySliver extends StatelessWidget {
               TextButton(onPressed: onClearHistory, child: const Text('清空')),
             ],
           ),
-          const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: recentKeywords.map((String item) {
               return ActionChip(
+                side: BorderSide.none,
+                labelPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                 label: Text(item),
-                backgroundColor: colorScheme.surfaceContainerLowest,
-                side: BorderSide(color: colorScheme.outlineVariant),
+                backgroundColor: ColorUtil.getShade(
+                  theme.primaryColor,
+                  100,
+                ).withValues(alpha: 0.1),
                 labelStyle: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
                 onPressed: () => onSelectKeyword(item),
               );
