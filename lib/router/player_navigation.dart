@@ -16,7 +16,11 @@ bool _playerPageOpening = false;
 
 ValueListenable<bool> get playerPageVisibilityListenable => _playerPageVisible;
 
-Future<void> openPlayerPage(BuildContext context, {PlayableItem? item}) async {
+Future<void> openPlayerPage(
+  BuildContext context, {
+  PlayableItem? item,
+  NavigatorState? navigator,
+}) async {
   final bool blocked = _playerPageVisible.value || _playerPageOpening;
   _logger.d(
     'openPlayerPage | blocked=$blocked, visible=${_playerPageVisible.value}, '
@@ -34,7 +38,9 @@ Future<void> openPlayerPage(BuildContext context, {PlayableItem? item}) async {
       return;
     }
     markPlayerPageVisible();
-    await Navigator.of(context).push<void>(_createMobilePlayerRoute(item));
+    await (navigator ?? Navigator.of(context)).push<void>(
+      _createMobilePlayerRoute(item),
+    );
   } finally {
     if (PlatformUtil.isMobile) {
       markPlayerPageHidden();

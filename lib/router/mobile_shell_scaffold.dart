@@ -6,6 +6,7 @@ import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:bilimusic/feature/player/ui/mini_player_bar.dart';
 import 'package:bilimusic/feature/player/ui/mini_player_glass_bar.dart';
 import 'package:bilimusic/feature/setting/logic/appearance_setting_logic.dart';
+import 'package:bilimusic/router/mobile_branch_navigator_keys.dart';
 import 'package:bilimusic/router/mobile_chrome_config.dart';
 import 'package:bilimusic/router/player_navigation.dart';
 import 'package:flutter/material.dart';
@@ -236,6 +237,16 @@ class _MobileShellScaffoldState extends ConsumerState<MobileShellScaffold> {
     );
   }
 
+  Future<void> _openMiniPlayer() {
+    final int currentIndex = widget.navigationShell.currentIndex;
+    final NavigatorState? branchNavigator =
+        currentIndex >= 0 && currentIndex < mobileBranchNavigatorKeys.length
+        ? mobileBranchNavigatorKeys[currentIndex].currentState
+        : null;
+
+    return openPlayerPage(context, navigator: branchNavigator);
+  }
+
   Widget _buildShellContent(
     BuildContext context,
     PlayerState playerState,
@@ -271,7 +282,7 @@ class _MobileShellScaffoldState extends ConsumerState<MobileShellScaffold> {
                         bottomPadding: usesCollapsedBottomChrome
                             ? miniPlayerCollapsedBottomPadding
                             : miniPlayerVisibleBottomPadding,
-                        onTap: () => openPlayerPage(context),
+                        onTap: _openMiniPlayer,
                         onTogglePlayback: () {
                           ref
                               .read(playerControllerProvider.notifier)
@@ -283,7 +294,7 @@ class _MobileShellScaffoldState extends ConsumerState<MobileShellScaffold> {
                         bottomPadding: usesCollapsedBottomChrome
                             ? miniPlayerCollapsedBottomPadding
                             : miniPlayerVisibleBottomPadding,
-                        onTap: () => openPlayerPage(context),
+                        onTap: _openMiniPlayer,
                         onTogglePlayback: () {
                           ref
                               .read(playerControllerProvider.notifier)

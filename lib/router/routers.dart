@@ -21,6 +21,7 @@ import 'package:bilimusic/feature/setting/ui/theme_settings_page.dart';
 import 'package:bilimusic/feature/up/ui/collection_detail_page.dart';
 import 'package:bilimusic/feature/up/ui/up_page.dart';
 import 'package:bilimusic/router/app_shell.dart';
+import 'package:bilimusic/router/mobile_branch_navigator_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -191,13 +192,19 @@ final List<RouteBase> mobileRoutes = [
       );
     },
     branches: [
-      ...<Map<String, dynamic>>[...mobileTabs, ...mobileHiddenBranches].map(
-        (tab) => StatefulShellBranch(
+      ...<Map<String, dynamic>>[
+        ...mobileTabs,
+        ...mobileHiddenBranches,
+      ].asMap().entries.map(
+        (entry) => StatefulShellBranch(
+          navigatorKey: mobileBranchNavigatorKeys[entry.key],
           routes: [
             GoRoute(
-              path: tab['path'] as String,
-              builder: tab['builder'] as GoRouterWidgetBuilder,
-              routes: tab['routes'] as List<RouteBase>? ?? const <RouteBase>[],
+              path: entry.value['path'] as String,
+              builder: entry.value['builder'] as GoRouterWidgetBuilder,
+              routes:
+                  entry.value['routes'] as List<RouteBase>? ??
+                  const <RouteBase>[],
             ),
           ],
         ),
