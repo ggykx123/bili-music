@@ -6,7 +6,7 @@ extension SearchTypeExtension on SearchType {
       case SearchType.video:
         return '视频';
       case SearchType.up:
-        return 'UP主';
+        return '用户';
     }
   }
 
