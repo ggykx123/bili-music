@@ -1,7 +1,13 @@
 import 'dart:async';
 
 import 'package:bilimusic/common/components/cached_image.dart';
+import 'package:bilimusic/common/util/toast_util.dart';
+import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
+import 'package:bilimusic/feature/player/data/bili_player_repository.dart';
+import 'package:bilimusic/feature/player/domain/playable_item.dart';
+import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class VideoCardData {
   const VideoCardData({
@@ -19,12 +25,23 @@ class VideoCardData {
   final String? tag;
 }
 
-class VideoCard extends StatelessWidget {
+class VideoCardPlayableActions {
+  const VideoCardPlayableActions({
+    required this.playableItem,
+    required this.isFavorite,
+  });
+
+  final PlayableItem playableItem;
+  final bool isFavorite;
+}
+
+class VideoCard extends ConsumerWidget {
   const VideoCard({
     super.key,
     required this.data,
     required this.onTap,
     this.isFavorite = false,
+    this.playableActions,
     this.onFavoriteToggle,
     this.onPlayNext,
     this.onEnqueue,
@@ -33,17 +50,23 @@ class VideoCard extends StatelessWidget {
   final VideoCardData data;
   final VoidCallback onTap;
   final bool isFavorite;
+  final VideoCardPlayableActions? playableActions;
   final FutureOr<void> Function()? onFavoriteToggle;
   final FutureOr<void> Function()? onPlayNext;
   final FutureOr<void> Function()? onEnqueue;
 
   bool get _hasActions =>
-      onFavoriteToggle != null || onPlayNext != null || onEnqueue != null;
+      onFavoriteToggle != null ||
+      onPlayNext != null ||
+      onEnqueue != null ||
+      playableActions != null;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
+    final VideoCardPlayableActions? actions = playableActions;
+    final bool resolvedIsFavorite = actions?.isFavorite ?? isFavorite;
 
     return Material(
       color: Colors.transparent,
@@ -144,10 +167,12 @@ class VideoCard extends StatelessWidget {
               if (_hasActions) ...<Widget>[
                 const SizedBox(width: 12),
                 _VideoCardActions(
-                  isFavorite: isFavorite,
+                  isFavorite: resolvedIsFavorite,
                   onFavoriteToggle: onFavoriteToggle,
                   onPlayNext: onPlayNext,
                   onEnqueue: onEnqueue,
+                  playableActions: actions,
+                  ref: ref,
                 ),
               ],
             ],
@@ -161,22 +186,110 @@ class VideoCard extends StatelessWidget {
 class _VideoCardActions extends StatelessWidget {
   const _VideoCardActions({
     required this.isFavorite,
+    required this.ref,
     required this.onFavoriteToggle,
     required this.onPlayNext,
     required this.onEnqueue,
+    required this.playableActions,
   });
 
   final bool isFavorite;
+  final WidgetRef ref;
   final FutureOr<void> Function()? onFavoriteToggle;
   final FutureOr<void> Function()? onPlayNext;
   final FutureOr<void> Function()? onEnqueue;
+  final VideoCardPlayableActions? playableActions;
+
+  Future<void> _toggleFavorite(BuildContext context) async {
+    final VideoCardPlayableActions? actions = playableActions;
+    if (actions == null) {
+      final FutureOr<void> Function()? callback = onFavoriteToggle;
+      if (callback != null) {
+        await Future<void>.sync(callback);
+      }
+      return;
+    }
+
+    try {
+      final PlayableItem resolvedItem = await ref
+          .read(biliPlayerRepositoryProvider)
+          .resolvePreferredPart(actions.playableItem, preferredPage: 1);
+      final bool liked = await ref
+          .read(favoritesControllerProvider.notifier)
+          .toggleLiked(resolvedItem);
+      if (context.mounted) {
+        ToastUtil.show(liked ? '已收藏 P1' : '已从“我喜欢”移除');
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        ToastUtil.show('收藏失败: $error');
+      }
+    }
+  }
+
+  Future<void> _playNext(BuildContext context) async {
+    final VideoCardPlayableActions? actions = playableActions;
+    if (actions == null) {
+      final FutureOr<void> Function()? callback = onPlayNext;
+      if (callback != null) {
+        await Future<void>.sync(callback);
+      }
+      return;
+    }
+
+    try {
+      final PlayableItem resolvedItem = await ref
+          .read(biliPlayerRepositoryProvider)
+          .resolvePreferredPart(actions.playableItem, preferredPage: 1);
+      await ref.read(playerControllerProvider.notifier).playNext(resolvedItem);
+      if (context.mounted) {
+        ToastUtil.show('已加入下一首');
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        ToastUtil.show('操作失败: $error');
+      }
+    }
+  }
+
+  Future<void> _enqueue(BuildContext context) async {
+    final VideoCardPlayableActions? actions = playableActions;
+    if (actions == null) {
+      final FutureOr<void> Function()? callback = onEnqueue;
+      if (callback != null) {
+        await Future<void>.sync(callback);
+      }
+      return;
+    }
+
+    try {
+      final PlayableItem resolvedItem = await ref
+          .read(biliPlayerRepositoryProvider)
+          .resolvePreferredPart(actions.playableItem, preferredPage: 1);
+      await ref.read(playerControllerProvider.notifier).enqueue(<PlayableItem>[
+        resolvedItem,
+      ]);
+      if (context.mounted) {
+        ToastUtil.show('已加入播放队列');
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        ToastUtil.show('操作失败: $error');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool hasFavoriteAction =
+        onFavoriteToggle != null || playableActions != null;
+    final bool hasQueueActions =
+        onPlayNext != null || onEnqueue != null || playableActions != null;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        if (onFavoriteToggle != null)
+        if (hasFavoriteAction)
           VideoCardIconAction(
             icon: isFavorite
                 ? Icons.favorite_rounded
@@ -184,32 +297,24 @@ class _VideoCardActions extends StatelessWidget {
             isActive: isFavorite,
             activeColor: Theme.of(context).colorScheme.secondary,
             tooltip: isFavorite ? '取消收藏' : '收藏',
-            onTap: () => unawaited(Future<void>.sync(onFavoriteToggle!)),
+            onTap: () => unawaited(_toggleFavorite(context)),
           ),
-        if (onFavoriteToggle != null &&
-            (onPlayNext != null || onEnqueue != null))
-          const SizedBox(height: 8),
-        if (onPlayNext != null || onEnqueue != null)
+        if (hasFavoriteAction && hasQueueActions) const SizedBox(height: 8),
+        if (hasQueueActions)
           PopupMenuButton<_VideoCardQueueAction>(
             tooltip: '队列操作',
             padding: EdgeInsets.zero,
             onSelected: (_VideoCardQueueAction action) {
               switch (action) {
                 case _VideoCardQueueAction.playNext:
-                  final FutureOr<void> Function()? callback = onPlayNext;
-                  if (callback != null) {
-                    unawaited(Future<void>.sync(callback));
-                  }
+                  unawaited(_playNext(context));
                 case _VideoCardQueueAction.enqueue:
-                  final FutureOr<void> Function()? callback = onEnqueue;
-                  if (callback != null) {
-                    unawaited(Future<void>.sync(callback));
-                  }
+                  unawaited(_enqueue(context));
               }
             },
             itemBuilder: (BuildContext context) =>
                 <PopupMenuEntry<_VideoCardQueueAction>>[
-                  if (onPlayNext != null)
+                  if (onPlayNext != null || playableActions != null)
                     const PopupMenuItem<_VideoCardQueueAction>(
                       value: _VideoCardQueueAction.playNext,
                       child: ListTile(
@@ -218,7 +323,7 @@ class _VideoCardActions extends StatelessWidget {
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
-                  if (onEnqueue != null)
+                  if (onEnqueue != null || playableActions != null)
                     const PopupMenuItem<_VideoCardQueueAction>(
                       value: _VideoCardQueueAction.enqueue,
                       child: ListTile(

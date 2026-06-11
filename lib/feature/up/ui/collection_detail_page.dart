@@ -1,6 +1,7 @@
 import 'package:bilimusic/common/components/video_card.dart';
 import 'package:bilimusic/common/components/cached_image.dart';
 import 'package:bilimusic/common/util/player_util.dart';
+import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/up/domain/collection_detail_state.dart';
 import 'package:bilimusic/feature/up/domain/up_collection.dart';
@@ -26,6 +27,7 @@ class CollectionDetailPage extends ConsumerWidget {
     final AsyncValue<CollectionDetailState> state = ref.watch(
       collectionDetailControllerProvider(mid, seasonId),
     );
+    final favoritesState = ref.watch(favoritesControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('合集')),
@@ -94,6 +96,15 @@ class CollectionDetailPage extends ConsumerWidget {
                 final int itemIndex = index - 1;
                 final UpCollectionItem item = data.items[itemIndex];
                 final cardData = item.toVideoCardData();
+                final PlayableItem playableItem = item.toPlayableItem(
+                  ownerMid: data.collection?.mid ?? mid,
+                  ownerName: _resolveOwnerName(),
+                );
+                final bool isFavorite = favoritesState.isLikedVideoPage(
+                  aid: item.aid,
+                  bvid: item.bvid,
+                  page: 1,
+                );
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: VideoCard(
@@ -104,6 +115,10 @@ class CollectionDetailPage extends ConsumerWidget {
                       secondaryMeta: cardData.secondaryMeta,
                     ),
                     onTap: () => _playFrom(context, ref, data, itemIndex),
+                    playableActions: VideoCardPlayableActions(
+                      playableItem: playableItem,
+                      isFavorite: isFavorite,
+                    ),
                   ),
                 );
               },
@@ -121,9 +136,7 @@ class CollectionDetailPage extends ConsumerWidget {
     int index,
   ) {
     final int ownerMid = data.collection?.mid ?? mid;
-    final String resolvedOwnerName = (ownerName?.trim().isNotEmpty ?? false)
-        ? ownerName!.trim()
-        : '';
+    final String resolvedOwnerName = _resolveOwnerName();
     final List<PlayableItem> queue = data.items
         .map(
           (UpCollectionItem item) => item.toPlayableItem(
@@ -139,6 +152,13 @@ class CollectionDetailPage extends ConsumerWidget {
       startIndex: index,
       sourceLabel: data.collection?.title ?? '合集',
     );
+  }
+
+  String _resolveOwnerName() {
+    if (ownerName?.trim().isNotEmpty ?? false) {
+      return ownerName!.trim();
+    }
+    return '';
   }
 }
 

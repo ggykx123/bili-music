@@ -1,10 +1,7 @@
 import 'package:bilimusic/common/components/video_card.dart';
 import 'package:bilimusic/common/util/player_util.dart';
-import 'package:bilimusic/common/util/toast_util.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
-import 'package:bilimusic/feature/player/data/bili_player_repository.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
-import 'package:bilimusic/feature/player/logic/player_controller.dart';
 import 'package:bilimusic/feature/up/domain/up_page_state.dart';
 import 'package:bilimusic/feature/up/domain/up_video_item.dart';
 import 'package:bilimusic/feature/up/logic/up_page_controller.dart';
@@ -257,81 +254,16 @@ class _DesktopUpVideoSliverList extends ConsumerWidget {
                   item: playableItem,
                   sourceLabel: item.ownerName,
                 ),
-                isFavorite: isFavorite,
-                onFavoriteToggle: () =>
-                    _toggleFavorite(context, ref, playableItem),
-                onPlayNext: () => _playNext(context, ref, playableItem),
-                onEnqueue: () => _enqueue(context, ref, playableItem),
+                playableActions: VideoCardPlayableActions(
+                  playableItem: playableItem,
+                  isFavorite: isFavorite,
+                ),
               ),
             ),
           );
         },
       ),
     );
-  }
-
-  Future<void> _toggleFavorite(
-    BuildContext context,
-    WidgetRef ref,
-    PlayableItem item,
-  ) async {
-    try {
-      final PlayableItem resolvedItem = await ref
-          .read(biliPlayerRepositoryProvider)
-          .resolvePreferredPart(item, preferredPage: 1);
-      final bool liked = await ref
-          .read(favoritesControllerProvider.notifier)
-          .toggleLiked(resolvedItem);
-      if (context.mounted) {
-        ToastUtil.show(liked ? '已收藏 P1' : '已从“我喜欢”移除');
-      }
-    } on Object catch (error) {
-      if (context.mounted) {
-        ToastUtil.show('收藏失败: $error');
-      }
-    }
-  }
-
-  Future<void> _playNext(
-    BuildContext context,
-    WidgetRef ref,
-    PlayableItem item,
-  ) async {
-    try {
-      final PlayableItem resolvedItem = await ref
-          .read(biliPlayerRepositoryProvider)
-          .resolvePreferredPart(item, preferredPage: 1);
-      await ref.read(playerControllerProvider.notifier).playNext(resolvedItem);
-      if (context.mounted) {
-        ToastUtil.show('已加入下一首');
-      }
-    } on Object catch (error) {
-      if (context.mounted) {
-        ToastUtil.show('操作失败: $error');
-      }
-    }
-  }
-
-  Future<void> _enqueue(
-    BuildContext context,
-    WidgetRef ref,
-    PlayableItem item,
-  ) async {
-    try {
-      final PlayableItem resolvedItem = await ref
-          .read(biliPlayerRepositoryProvider)
-          .resolvePreferredPart(item, preferredPage: 1);
-      await ref.read(playerControllerProvider.notifier).enqueue(<PlayableItem>[
-        resolvedItem,
-      ]);
-      if (context.mounted) {
-        ToastUtil.show('已加入播放队列');
-      }
-    } on Object catch (error) {
-      if (context.mounted) {
-        ToastUtil.show('操作失败: $error');
-      }
-    }
   }
 }
 
