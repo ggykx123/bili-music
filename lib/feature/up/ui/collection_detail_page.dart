@@ -123,7 +123,7 @@ class CollectionDetailPage extends ConsumerWidget {
     final int ownerMid = data.collection?.mid ?? mid;
     final String resolvedOwnerName = (ownerName?.trim().isNotEmpty ?? false)
         ? ownerName!.trim()
-        : 'UP主';
+        : '';
     final List<PlayableItem> queue = data.items
         .map(
           (UpCollectionItem item) => item.toPlayableItem(
