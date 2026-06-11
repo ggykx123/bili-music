@@ -117,7 +117,7 @@ class _MobileShellScaffoldState extends ConsumerState<MobileShellScaffold> {
       return Scaffold(body: content);
     }
 
-    return Scaffold(
+    return GlassScaffold(
       body: BottomBar(
         layout: BottomBarLayout(
           width: screenWidth * 0.92,
@@ -126,10 +126,6 @@ class _MobileShellScaffoldState extends ConsumerState<MobileShellScaffold> {
           fit: StackFit.expand,
           respectSafeArea: false,
         ),
-        // motion: const BottomBarMotion.curved(
-        //   duration: _animationDuration,
-        //   curve: _animationCurve,
-        // ),
         scrollBehavior: const BottomBarScrollBehavior(hideOnScroll: false),
         theme: const BottomBarThemeData(
           barDecoration: BoxDecoration(color: Colors.transparent),
@@ -149,7 +145,6 @@ class _MobileShellScaffoldState extends ConsumerState<MobileShellScaffold> {
                   : Offset.zero,
               child: useGlassBar
                   ? GlassBottomBar(
-                      glassSettings: const LiquidGlassSettings(),
                       spacing: 4,
                       verticalPadding: 4,
                       barHeight: 54,

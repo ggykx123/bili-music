@@ -61,7 +61,8 @@ void main() async {
   }
   runApp(
     LiquidGlassWidgets.wrap(
-      UncontrolledProviderScope(
+      adaptiveQuality: true,
+      child: UncontrolledProviderScope(
         container: container,
         child: _AppBootstrap(
           desktopLifecycle: desktopLifecycle,
