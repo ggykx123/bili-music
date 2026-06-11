@@ -26,7 +26,6 @@ class MiniPlayerGlassBar extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: GlassContainer(
-          settings: const LiquidGlassSettings(glassColor: Color(0x00FFFFFF)),
           shape: const LiquidRoundedSuperellipse(borderRadius: 24),
           child: MiniPlayerContent(
             state: state,
@@ -36,5 +35,5 @@ class MiniPlayerGlassBar extends StatelessWidget {
         ),
       ),
     );
-  }
+  } 
 }
