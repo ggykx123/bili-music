@@ -6,6 +6,7 @@ import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/player/data/bili_player_repository.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
+import 'package:bilimusic/feature/player/ui/components/player_collection_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,6 +46,7 @@ class VideoCard extends ConsumerWidget {
     this.onFavoriteToggle,
     this.onPlayNext,
     this.onEnqueue,
+    this.onAddToCollection,
   });
 
   final VideoCardData data;
@@ -54,11 +56,13 @@ class VideoCard extends ConsumerWidget {
   final FutureOr<void> Function()? onFavoriteToggle;
   final FutureOr<void> Function()? onPlayNext;
   final FutureOr<void> Function()? onEnqueue;
+  final FutureOr<void> Function()? onAddToCollection;
 
   bool get _hasActions =>
       onFavoriteToggle != null ||
       onPlayNext != null ||
       onEnqueue != null ||
+      onAddToCollection != null ||
       playableActions != null;
 
   @override
@@ -171,6 +175,7 @@ class VideoCard extends ConsumerWidget {
                   onFavoriteToggle: onFavoriteToggle,
                   onPlayNext: onPlayNext,
                   onEnqueue: onEnqueue,
+                  onAddToCollection: onAddToCollection,
                   playableActions: actions,
                   ref: ref,
                 ),
@@ -190,6 +195,7 @@ class _VideoCardActions extends StatelessWidget {
     required this.onFavoriteToggle,
     required this.onPlayNext,
     required this.onEnqueue,
+    required this.onAddToCollection,
     required this.playableActions,
   });
 
@@ -198,6 +204,7 @@ class _VideoCardActions extends StatelessWidget {
   final FutureOr<void> Function()? onFavoriteToggle;
   final FutureOr<void> Function()? onPlayNext;
   final FutureOr<void> Function()? onEnqueue;
+  final FutureOr<void> Function()? onAddToCollection;
   final VideoCardPlayableActions? playableActions;
 
   Future<void> _toggleFavorite(BuildContext context) async {
@@ -279,12 +286,30 @@ class _VideoCardActions extends StatelessWidget {
     }
   }
 
+  Future<void> _addToCollection(BuildContext context) async {
+    final VideoCardPlayableActions? actions = playableActions;
+    if (actions == null) {
+      final FutureOr<void> Function()? callback = onAddToCollection;
+      if (callback != null) {
+        await Future<void>.sync(callback);
+      }
+      return;
+    }
+
+    await showPlayerCollectionSheet(
+      context: context,
+      item: actions.playableItem,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool hasFavoriteAction =
         onFavoriteToggle != null || playableActions != null;
     final bool hasQueueActions =
         onPlayNext != null || onEnqueue != null || playableActions != null;
+    final bool hasCollectionAction =
+        onAddToCollection != null || playableActions != null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -300,7 +325,7 @@ class _VideoCardActions extends StatelessWidget {
             onTap: () => unawaited(_toggleFavorite(context)),
           ),
         if (hasFavoriteAction && hasQueueActions) const SizedBox(height: 8),
-        if (hasQueueActions)
+        if (hasQueueActions || hasCollectionAction)
           PopupMenuButton<_VideoCardQueueAction>(
             tooltip: '队列操作',
             padding: EdgeInsets.zero,
@@ -310,6 +335,8 @@ class _VideoCardActions extends StatelessWidget {
                   unawaited(_playNext(context));
                 case _VideoCardQueueAction.enqueue:
                   unawaited(_enqueue(context));
+                case _VideoCardQueueAction.addToCollection:
+                  unawaited(_addToCollection(context));
               }
             },
             itemBuilder: (BuildContext context) =>
@@ -332,6 +359,15 @@ class _VideoCardActions extends StatelessWidget {
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
+                  if (onAddToCollection != null || playableActions != null)
+                    const PopupMenuItem<_VideoCardQueueAction>(
+                      value: _VideoCardQueueAction.addToCollection,
+                      child: ListTile(
+                        leading: Icon(Icons.playlist_add_rounded),
+                        title: Text('添加到歌单'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                 ],
             child: const VideoCardIconAction(
               icon: Icons.more_horiz_rounded,
@@ -344,7 +380,7 @@ class _VideoCardActions extends StatelessWidget {
   }
 }
 
-enum _VideoCardQueueAction { playNext, enqueue }
+enum _VideoCardQueueAction { playNext, enqueue, addToCollection }
 
 class VideoCardIconAction extends StatelessWidget {
   const VideoCardIconAction({
