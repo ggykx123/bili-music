@@ -2,10 +2,17 @@
 
 flutter 制作的 B站音乐客户端
 
+- 播放,搜索
+- 同步收藏夹
+- 元信息匹配
+- 外部歌单导入
+- 动态取色
+- 多平台支持
+- etc...
 
 ## 图片
 
-![showcase](https://github.com/AprDeci/bili-music/blob/main/pics/v1.5.0.jpeg)
+![showcase](https://github.com/AprDeci/bili-music/blob/main/pics/mobileShowcase.webp)
 
 ![showcase_desktop](https://github.com/AprDeci/bili-music/blob/main/pics/desktop/v1.5.0.jpeg)
 
