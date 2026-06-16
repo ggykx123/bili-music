@@ -1004,6 +1004,7 @@ class PlayerController extends Notifier<PlayerState>
             playerState.processingState != audio.ProcessingState.loading;
         final bool completed =
             playerState.processingState == audio.ProcessingState.completed;
+        final bool shouldHandleCompleted = completed && playerState.playing;
 
         state = state.copyWith(
           isPlaying: playerState.playing,
@@ -1016,7 +1017,7 @@ class PlayerController extends Notifier<PlayerState>
               : isBuffering
               ? PlayerStatusHint.buffering
               : null,
-          position: completed
+          position: shouldHandleCompleted
               ? (state.duration ?? state.position)
               : state.position,
         );
@@ -1026,7 +1027,7 @@ class PlayerController extends Notifier<PlayerState>
           ),
         );
 
-        if (completed && playerState.playing) {
+        if (shouldHandleCompleted) {
           unawaited(_handlePlaybackCompleted());
         }
       }),
