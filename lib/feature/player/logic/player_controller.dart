@@ -66,6 +66,9 @@ class PlayerController extends Notifier<PlayerState>
   final Map<String, int?> _qualityOverrides = <String, int?>{};
   final List<StreamSubscription<dynamic>> _subscriptions =
       <StreamSubscription<dynamic>>[];
+  // 底层播放器原始值和页面使用的 PlayerState 分开保存。
+  _EnginePlaybackSnapshot _enginePlaybackSnapshot =
+      const _EnginePlaybackSnapshot();
 
   bool _isBound = false;
   bool _isDisposed = false;
@@ -340,6 +343,7 @@ class PlayerController extends Notifier<PlayerState>
     );
     _qualityOverrides.clear();
     _queueManager.resetForQueue(currentIndex: resolvedIndex);
+    _resetEnginePlaybackSnapshot();
     state = state.copyWith(
       queue: queue,
       currentQueueIndex: resolvedIndex,
@@ -386,6 +390,7 @@ class PlayerController extends Notifier<PlayerState>
     _qualityOverrides.remove(previousItem.stableId);
     nextQueue[currentIndex] = item;
     _playbackLoader.removeResolvedEntryCachesForItem(previousItem);
+    _resetEnginePlaybackSnapshot();
     state = state.copyWith(
       queue: List<PlayableItem>.unmodifiable(nextQueue),
       currentQueueIndex: currentIndex,
@@ -566,6 +571,7 @@ class PlayerController extends Notifier<PlayerState>
     _queueManager.resetForQueue(currentIndex: null);
     _qualityOverrides.clear();
     await _audioEngine.stop();
+    _resetEnginePlaybackSnapshot();
     state = state.copyWith(
       queue: const <PlayableItem>[],
       currentQueueIndex: null,
@@ -682,6 +688,7 @@ class PlayerController extends Notifier<PlayerState>
       mode: snapshot.queueMode,
       currentIndex: restoredIndex,
     );
+    _resetEnginePlaybackSnapshot();
     state = state.copyWith(
       queue: List<PlayableItem>.unmodifiable(restoredQueue),
       currentQueueIndex: restoredIndex,
@@ -750,6 +757,9 @@ class PlayerController extends Notifier<PlayerState>
       },
     );
 
+    _resetEnginePlaybackSnapshot(
+      processingState: audio.ProcessingState.loading,
+    );
     state = state.copyWith(
       currentQueueIndex: queueIndex,
       currentItem: targetItem,
@@ -954,84 +964,182 @@ class PlayerController extends Notifier<PlayerState>
 
   void _bindPlayerStreams() {
     _subscriptions.add(
-      _audioEngine.positionStream.listen((Duration position) {
-        state = state.copyWith(position: position);
-        _publishMediaSession();
-      }),
+      _audioEngine.positionStream.listen(_onEnginePositionChanged),
     );
     _subscriptions.add(
-      _audioEngine.bufferedPositionStream.listen((Duration bufferedPosition) {
-        state = state.copyWith(bufferedPosition: bufferedPosition);
-        _publishMediaSession();
-      }),
+      _audioEngine.bufferedPositionStream.listen(
+        _onEngineBufferedPositionChanged,
+      ),
     );
     _subscriptions.add(
-      _audioEngine.durationStream.listen((Duration? duration) {
-        if (duration == null) {
-          return;
-        }
-        state = state.copyWith(duration: duration);
-        _publishMediaSession();
-      }),
+      _audioEngine.durationStream.listen(_onEngineDurationChanged),
     );
     _subscriptions.add(
-      _audioEngine.volumeStream.listen((double volume) {
-        final double nextVolume = volume.clamp(0.0, 1.0).toDouble();
-        if (nextVolume > 0) {
-          _lastAudibleVolume = nextVolume;
-        }
-        state = state.copyWith(volume: nextVolume);
-      }),
+      _audioEngine.volumeStream.listen(_onEngineVolumeChanged),
     );
+    _subscriptions.add(_audioEngine.errorStream.listen(_onEnginePlaybackError));
     _subscriptions.add(
-      _audioEngine.errorStream.listen((audio.PlayerException error) {
-        state = state.copyWith(
-          isLoading: false,
-          isPlaying: false,
-          isBuffering: false,
-          statusHint: PlayerStatusHint.error,
-          errorMessage: '播放器错误: ${error.message}',
-        );
-        _publishMediaSession();
-      }),
+      _audioEngine.playerStateStream.listen(_onEnginePlayerStateChanged),
     );
-    _subscriptions.add(
-      _audioEngine.playerStateStream.listen((audio.PlayerState playerState) {
-        final bool isBuffering =
-            playerState.processingState == audio.ProcessingState.loading ||
-            playerState.processingState == audio.ProcessingState.buffering;
-        final bool isReady =
-            playerState.processingState != audio.ProcessingState.idle &&
-            playerState.processingState != audio.ProcessingState.loading;
-        final bool completed =
-            playerState.processingState == audio.ProcessingState.completed;
-        final bool shouldHandleCompleted = completed && playerState.playing;
+  }
 
-        state = state.copyWith(
-          isPlaying: playerState.playing,
-          isBuffering: isBuffering,
-          isReady: state.isLoading ? state.isReady : isReady,
-          statusHint: state.hasError
-              ? PlayerStatusHint.error
-              : state.isLoading
-              ? state.statusHint
-              : isBuffering
-              ? PlayerStatusHint.buffering
-              : null,
-          position: shouldHandleCompleted
-              ? (state.duration ?? state.position)
-              : state.position,
-        );
-        _publishMediaSession(
-          processingState: mapAudioProcessingState(
-            playerState.processingState.name,
-          ),
-        );
+  void _onEnginePositionChanged(Duration position) {
+    _applyEnginePlaybackChange(
+      _EnginePlaybackChange.position,
+      _enginePlaybackSnapshot.copyWith(position: position),
+    );
+  }
 
-        if (shouldHandleCompleted) {
-          unawaited(_handlePlaybackCompleted(_operationGeneration));
-        }
-      }),
+  void _onEngineBufferedPositionChanged(Duration bufferedPosition) {
+    _applyEnginePlaybackChange(
+      _EnginePlaybackChange.bufferedPosition,
+      _enginePlaybackSnapshot.copyWith(bufferedPosition: bufferedPosition),
+    );
+  }
+
+  void _onEngineDurationChanged(Duration? duration) {
+    if (duration == null) {
+      return;
+    }
+
+    _applyEnginePlaybackChange(
+      _EnginePlaybackChange.duration,
+      _enginePlaybackSnapshot.copyWith(duration: duration),
+    );
+  }
+
+  void _onEngineVolumeChanged(double volume) {
+    final double nextVolume = volume.clamp(0.0, 1.0).toDouble();
+    if (nextVolume > 0) {
+      _lastAudibleVolume = nextVolume;
+    }
+
+    _applyEnginePlaybackChange(
+      _EnginePlaybackChange.volume,
+      _enginePlaybackSnapshot.copyWith(volume: nextVolume),
+    );
+  }
+
+  void _onEnginePlaybackError(audio.PlayerException error) {
+    state = state.copyWith(
+      isLoading: false,
+      isPlaying: false,
+      isBuffering: false,
+      statusHint: PlayerStatusHint.error,
+      errorMessage: '播放器错误: ${error.message}',
+    );
+    _publishMediaSession();
+  }
+
+  void _onEnginePlayerStateChanged(audio.PlayerState playerState) {
+    _applyEnginePlaybackChange(
+      _EnginePlaybackChange.playerState,
+      _enginePlaybackSnapshot.copyWith(
+        playing: playerState.playing,
+        processingState: playerState.processingState,
+      ),
+    );
+  }
+
+  void _resetEnginePlaybackSnapshot({
+    double? volume,
+    audio.ProcessingState processingState = audio.ProcessingState.idle,
+  }) {
+    // 切换音源时清掉临时播放字段，避免上一首的 completed 事件影响下一首。
+    _enginePlaybackSnapshot = _EnginePlaybackSnapshot(
+      volume: volume ?? _enginePlaybackSnapshot.volume,
+      processingState: processingState,
+    );
+  }
+
+  void _applyEnginePlaybackChange(
+    _EnginePlaybackChange change,
+    _EnginePlaybackSnapshot nextSnapshot,
+  ) {
+    final _EnginePlaybackSnapshot previousSnapshot = _enginePlaybackSnapshot;
+    _enginePlaybackSnapshot = nextSnapshot;
+    final _EnginePlaybackReduction reduction = _reduceEnginePlaybackSnapshot(
+      current: state,
+      previous: previousSnapshot,
+      next: nextSnapshot,
+      change: change,
+    );
+
+    // 先更新 PlayerState，再执行依赖它的发布和完成处理。
+    state = reduction.nextState;
+    if (reduction.shouldPublishMediaSession) {
+      _publishMediaSession(processingState: reduction.mediaProcessingState);
+    }
+    if (reduction.shouldHandleCompleted) {
+      unawaited(_handlePlaybackCompleted(_operationGeneration));
+    }
+  }
+
+  _EnginePlaybackReduction _reduceEnginePlaybackSnapshot({
+    required PlayerState current,
+    required _EnginePlaybackSnapshot previous,
+    required _EnginePlaybackSnapshot next,
+    required _EnginePlaybackChange change,
+  }) {
+    return switch (change) {
+      _EnginePlaybackChange.position => _EnginePlaybackReduction(
+        nextState: current.copyWith(position: next.position),
+      ),
+      _EnginePlaybackChange.bufferedPosition => _EnginePlaybackReduction(
+        nextState: current.copyWith(bufferedPosition: next.bufferedPosition),
+      ),
+      _EnginePlaybackChange.duration => _EnginePlaybackReduction(
+        nextState: current.copyWith(duration: next.duration),
+      ),
+      _EnginePlaybackChange.volume => _EnginePlaybackReduction(
+        nextState: current.copyWith(volume: next.volume),
+        shouldPublishMediaSession: false,
+      ),
+      _EnginePlaybackChange.playerState => _reduceEnginePlayerState(
+        current: current,
+        previous: previous,
+        next: next,
+      ),
+    };
+  }
+
+  _EnginePlaybackReduction _reduceEnginePlayerState({
+    required PlayerState current,
+    required _EnginePlaybackSnapshot previous,
+    required _EnginePlaybackSnapshot next,
+  }) {
+    final audio.ProcessingState processingState = next.processingState;
+    final bool isBuffering =
+        processingState == audio.ProcessingState.loading ||
+        processingState == audio.ProcessingState.buffering;
+    final bool isReady =
+        processingState != audio.ProcessingState.idle &&
+        processingState != audio.ProcessingState.loading;
+    final bool completed = processingState == audio.ProcessingState.completed;
+    final bool enteredCompleted =
+        completed &&
+        previous.processingState != audio.ProcessingState.completed;
+    // 只处理进入 completed 的瞬间，忽略停留在 completed 的旧快照。
+    final bool shouldHandleCompleted = enteredCompleted && next.playing;
+
+    return _EnginePlaybackReduction(
+      nextState: current.copyWith(
+        isPlaying: next.playing,
+        isBuffering: isBuffering,
+        isReady: current.isLoading ? current.isReady : isReady,
+        statusHint: current.hasError
+            ? PlayerStatusHint.error
+            : current.isLoading
+            ? current.statusHint
+            : isBuffering
+            ? PlayerStatusHint.buffering
+            : null,
+        position: shouldHandleCompleted
+            ? (current.duration ?? current.position)
+            : current.position,
+      ),
+      mediaProcessingState: mapAudioProcessingState(processingState.name),
+      shouldHandleCompleted: shouldHandleCompleted,
     );
   }
 
@@ -1209,4 +1317,62 @@ class PlayerController extends Notifier<PlayerState>
         .where((PlayableItem item) => seenIds.add(item.stableId))
         .toList(growable: false);
   }
+}
+
+enum _EnginePlaybackChange {
+  position,
+  bufferedPosition,
+  duration,
+  volume,
+  playerState,
+}
+
+class _EnginePlaybackSnapshot {
+  const _EnginePlaybackSnapshot({
+    this.position = Duration.zero,
+    this.bufferedPosition = Duration.zero,
+    this.duration,
+    this.volume = 1.0,
+    this.playing = false,
+    this.processingState = audio.ProcessingState.idle,
+  });
+
+  final Duration position;
+  final Duration bufferedPosition;
+  final Duration? duration;
+  final double volume;
+  final bool playing;
+  final audio.ProcessingState processingState;
+
+  _EnginePlaybackSnapshot copyWith({
+    Duration? position,
+    Duration? bufferedPosition,
+    Duration? duration,
+    double? volume,
+    bool? playing,
+    audio.ProcessingState? processingState,
+  }) {
+    return _EnginePlaybackSnapshot(
+      position: position ?? this.position,
+      bufferedPosition: bufferedPosition ?? this.bufferedPosition,
+      duration: duration ?? this.duration,
+      volume: volume ?? this.volume,
+      playing: playing ?? this.playing,
+      processingState: processingState ?? this.processingState,
+    );
+  }
+}
+
+class _EnginePlaybackReduction {
+  const _EnginePlaybackReduction({
+    required this.nextState,
+    this.shouldPublishMediaSession = true,
+    this.mediaProcessingState,
+    this.shouldHandleCompleted = false,
+  });
+
+  final PlayerState nextState;
+  final bool shouldPublishMediaSession;
+  final AudioProcessingState? mediaProcessingState;
+  final bool shouldHandleCompleted;
 }
