@@ -26,16 +26,18 @@ class PlayerAudioEngine {
   bool get playing => _audioPlayer.playing;
   double get volume => _audioPlayer.volume;
   Duration get position => _audioPlayer.position;
-  audio.ProcessingState get processingState => _audioPlayer.processingState;
+  PlayerEngineProcessingState get processingState =>
+      _audioPlayer.processingState.toPlayerEngineProcessingState();
 
   Stream<Duration> get positionStream => _audioPlayer.positionStream;
   Stream<Duration> get bufferedPositionStream =>
       _audioPlayer.bufferedPositionStream;
   Stream<Duration?> get durationStream => _audioPlayer.durationStream;
-  Stream<audio.PlayerException> get errorStream => _audioPlayer.errorStream;
+  Stream<PlayerEngineException> get errorStream =>
+      _audioPlayer.errorStream.map(PlayerEngineException.fromJustAudio);
   Stream<double> get volumeStream => _audioPlayer.volumeStream;
-  Stream<audio.PlayerState> get playerStateStream =>
-      _audioPlayer.playerStateStream;
+  Stream<PlayerEngineState> get playerStateStream =>
+      _audioPlayer.playerStateStream.map(PlayerEngineState.fromJustAudio);
 
   Future<Duration?> setRemoteSource({
     required Uri uri,
@@ -82,5 +84,70 @@ class PlayerAudioEngine {
 
   Future<void> dispose() {
     return _audioPlayer.dispose();
+  }
+}
+
+class PlayerEngineState {
+  const PlayerEngineState({
+    required this.playing,
+    required this.processingState,
+  });
+
+  factory PlayerEngineState.fromJustAudio(audio.PlayerState state) {
+    return PlayerEngineState(
+      playing: state.playing,
+      processingState: state.processingState.toPlayerEngineProcessingState(),
+    );
+  }
+
+  final bool playing;
+  final PlayerEngineProcessingState processingState;
+}
+
+class PlayerEngineException implements Exception {
+  const PlayerEngineException(this.message, {this.code});
+
+  factory PlayerEngineException.fromJustAudio(audio.PlayerException error) {
+    return PlayerEngineException(
+      error.message ?? error.toString(),
+      code: error.code,
+    );
+  }
+
+  final String message;
+  final Object? code;
+
+  @override
+  String toString() {
+    if (code == null) {
+      return message;
+    }
+    return '$message (code: $code)';
+  }
+}
+
+enum PlayerEngineProcessingState { idle, loading, buffering, ready, completed }
+
+extension PlayerEngineProcessingStateX on PlayerEngineProcessingState {
+  bool get isBuffering {
+    return this == PlayerEngineProcessingState.loading ||
+        this == PlayerEngineProcessingState.buffering;
+  }
+
+  bool get isReady {
+    return this != PlayerEngineProcessingState.idle &&
+        this != PlayerEngineProcessingState.loading;
+  }
+}
+
+extension on audio.ProcessingState {
+  PlayerEngineProcessingState toPlayerEngineProcessingState() {
+    return switch (this) {
+      audio.ProcessingState.idle => PlayerEngineProcessingState.idle,
+      audio.ProcessingState.loading => PlayerEngineProcessingState.loading,
+      audio.ProcessingState.buffering => PlayerEngineProcessingState.buffering,
+      audio.ProcessingState.ready => PlayerEngineProcessingState.ready,
+      audio.ProcessingState.completed => PlayerEngineProcessingState.completed,
+    };
   }
 }
