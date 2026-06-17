@@ -70,6 +70,7 @@ class PlayerController extends Notifier<PlayerState>
   bool _isBound = false;
   bool _isDisposed = false;
   bool _isAdvancingQueue = false;
+  bool _isHandlingPlaybackCompleted = false;
   double _lastAudibleVolume = 1.0;
   int _operationGeneration = 0;
 
@@ -1028,27 +1029,39 @@ class PlayerController extends Notifier<PlayerState>
         );
 
         if (shouldHandleCompleted) {
-          unawaited(_handlePlaybackCompleted());
+          unawaited(_handlePlaybackCompleted(_operationGeneration));
         }
       }),
     );
   }
 
-  Future<void> _handlePlaybackCompleted() async {
-    if (_isAdvancingQueue) {
+  Future<void> _handlePlaybackCompleted(int generation) async {
+    if (_isHandlingPlaybackCompleted || _isAdvancingQueue) {
       return;
     }
-    if (!state.isPlaying) {
-      return;
-    }
-
-    if (state.queueMode == PlayerQueueMode.singleRepeat) {
-      await seek(Duration.zero);
-      await play();
+    if (!_isCurrentGeneration(generation)) {
       return;
     }
 
-    await skipToNext();
+    _isHandlingPlaybackCompleted = true;
+    try {
+      if (!_isCurrentGeneration(generation)) {
+        return;
+      }
+
+      if (state.queueMode == PlayerQueueMode.singleRepeat) {
+        await seek(Duration.zero);
+        if (!_isCurrentGeneration(generation)) {
+          return;
+        }
+        await _audioEngine.play();
+        return;
+      }
+
+      await skipToNext();
+    } finally {
+      _isHandlingPlaybackCompleted = false;
+    }
   }
 
   int _nextGeneration() {

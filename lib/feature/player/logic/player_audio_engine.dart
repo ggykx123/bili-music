@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart' as audio;
 
@@ -62,8 +60,8 @@ class PlayerAudioEngine {
     );
   }
 
-  Future<void> play() async {
-    unawaited(_audioPlayer.play());
+  Future<void> play() {
+    return _audioPlayer.play();
   }
 
   Future<void> pause() {
