@@ -14,21 +14,15 @@ import 'package:bilimusic/myApp.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:media_kit/media_kit.dart';
 
 Future<DesktopAppLifecycle?> bootstrap(ProviderContainer container) async {
+  MediaKit.ensureInitialized();
   await PlayerAudioService.initialize();
   if (PlatformUtil.isMobile) {
     await LiquidGlassWidgets.initialize();
   }
-  JustAudioMediaKit.ensureInitialized(
-    linux: true, // default: true  - dependency: media_kit_libs_linux
-    windows: true, // default: true  - dependency: media_kit_libs_windows_audio
-    iOS: true, // default: false - dependency: media_kit_libs_ios_audio
-    macOS: true,
-    android: true,
-  );
   await initHive();
   SmartDialog.config.attach = SmartConfigAttach(
     useAnimation: false,

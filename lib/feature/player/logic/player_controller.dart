@@ -1117,7 +1117,7 @@ class PlayerController extends Notifier<PlayerState>
         completed &&
         previous.processingState != PlayerEngineProcessingState.completed;
     // 只处理进入 completed 的瞬间，忽略停留在 completed 的旧快照。
-    final bool shouldHandleCompleted = enteredCompleted && next.playing;
+    final bool shouldHandleCompleted = enteredCompleted;
 
     return _EnginePlaybackReduction(
       nextState: current.copyWith(
