@@ -27,14 +27,34 @@ class RecentPlaybackSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            '最近播放',
-            style: theme.textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: colorScheme.onSurface,
-              fontSize: 18,
-              letterSpacing: -1.3,
-              height: 1,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => context.push('/profile/recent'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        '最近播放',
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: colorScheme.onSurface,
+                          fontSize: 18,
+                          letterSpacing: -1.3,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -42,19 +62,13 @@ class RecentPlaybackSection extends ConsumerWidget {
             height: 156,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: items.length + 1,
+              itemCount: items.length,
               physics: const BouncingScrollPhysics(),
               separatorBuilder: (BuildContext context, int index) {
                 return const SizedBox(width: 12);
               },
               itemBuilder: (BuildContext context, int index) {
-                if (index == 0) {
-                  return _RecentPlaybackEntryTile(
-                    onTap: () => context.push('/profile/recent'),
-                  );
-                }
-
-                final RecentPlaybackEntry item = items[index - 1];
+                final RecentPlaybackEntry item = items[index];
 
                 return _RecentPlaybackTile(
                   item: item,
@@ -71,55 +85,6 @@ class RecentPlaybackSection extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RecentPlaybackEntryTile extends StatelessWidget {
-  const _RecentPlaybackEntryTile({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colorScheme = theme.colorScheme;
-    final Color primary = colorScheme.primary;
-
-    return SizedBox(
-      width: 108,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                width: 108,
-                height: 108,
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.history_rounded, color: primary, size: 34),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '已播歌曲',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w400,
-                  height: 1.2,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
