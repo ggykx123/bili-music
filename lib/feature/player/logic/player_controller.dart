@@ -23,7 +23,6 @@ import 'package:bilimusic/feature/player/logic/player_media_item_mapper.dart';
 import 'package:bilimusic/feature/player/logic/player_settings_logic.dart';
 import 'package:bilimusic/feature/recent/logic/recent_playback_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart' as audio;
 
 final NotifierProvider<PlayerController, PlayerState> playerControllerProvider =
     NotifierProvider<PlayerController, PlayerState>(PlayerController.new);
@@ -757,8 +756,17 @@ class PlayerController extends Notifier<PlayerState>
       },
     );
 
+    try {
+      await _audioEngine.stop();
+    } on Object catch (error) {
+      _logPlayerEvent(
+        'loadQueueIndex:stop-before-load-failed',
+        details: <String, Object?>{'error': error},
+      );
+    }
+
     _resetEnginePlaybackSnapshot(
-      processingState: audio.ProcessingState.loading,
+      processingState: PlayerEngineProcessingState.loading,
     );
     state = state.copyWith(
       currentQueueIndex: queueIndex,
@@ -788,7 +796,6 @@ class PlayerController extends Notifier<PlayerState>
 
       final Duration? loadedDuration = await _playbackLoader.setSourceForEntry(
         entry: entry,
-        queueSourceLabel: state.queueSourceLabel,
         initialPosition: initialPosition,
         onStatusHint: (PlayerStatusHint hint) {
           state = state.copyWith(statusHint: hint);
@@ -1020,7 +1027,7 @@ class PlayerController extends Notifier<PlayerState>
     );
   }
 
-  void _onEnginePlaybackError(audio.PlayerException error) {
+  void _onEnginePlaybackError(PlayerEngineException error) {
     state = state.copyWith(
       isLoading: false,
       isPlaying: false,
@@ -1031,7 +1038,7 @@ class PlayerController extends Notifier<PlayerState>
     _publishMediaSession();
   }
 
-  void _onEnginePlayerStateChanged(audio.PlayerState playerState) {
+  void _onEnginePlayerStateChanged(PlayerEngineState playerState) {
     _applyEnginePlaybackChange(
       _EnginePlaybackChange.playerState,
       _enginePlaybackSnapshot.copyWith(
@@ -1043,7 +1050,8 @@ class PlayerController extends Notifier<PlayerState>
 
   void _resetEnginePlaybackSnapshot({
     double? volume,
-    audio.ProcessingState processingState = audio.ProcessingState.idle,
+    PlayerEngineProcessingState processingState =
+        PlayerEngineProcessingState.idle,
   }) {
     // 切换音源时清掉临时播放字段，避免上一首的 completed 事件影响下一首。
     _enginePlaybackSnapshot = _EnginePlaybackSnapshot(
@@ -1108,19 +1116,16 @@ class PlayerController extends Notifier<PlayerState>
     required _EnginePlaybackSnapshot previous,
     required _EnginePlaybackSnapshot next,
   }) {
-    final audio.ProcessingState processingState = next.processingState;
-    final bool isBuffering =
-        processingState == audio.ProcessingState.loading ||
-        processingState == audio.ProcessingState.buffering;
-    final bool isReady =
-        processingState != audio.ProcessingState.idle &&
-        processingState != audio.ProcessingState.loading;
-    final bool completed = processingState == audio.ProcessingState.completed;
+    final PlayerEngineProcessingState processingState = next.processingState;
+    final bool isBuffering = processingState.isBuffering;
+    final bool isReady = processingState.isReady;
+    final bool completed =
+        processingState == PlayerEngineProcessingState.completed;
     final bool enteredCompleted =
         completed &&
-        previous.processingState != audio.ProcessingState.completed;
+        previous.processingState != PlayerEngineProcessingState.completed;
     // 只处理进入 completed 的瞬间，忽略停留在 completed 的旧快照。
-    final bool shouldHandleCompleted = enteredCompleted && next.playing;
+    final bool shouldHandleCompleted = enteredCompleted;
 
     return _EnginePlaybackReduction(
       nextState: current.copyWith(
@@ -1138,7 +1143,7 @@ class PlayerController extends Notifier<PlayerState>
             ? (current.duration ?? current.position)
             : current.position,
       ),
-      mediaProcessingState: mapAudioProcessingState(processingState.name),
+      mediaProcessingState: processingState.toAudioProcessingState(),
       shouldHandleCompleted: shouldHandleCompleted,
     );
   }
@@ -1327,6 +1332,18 @@ enum _EnginePlaybackChange {
   playerState,
 }
 
+extension on PlayerEngineProcessingState {
+  AudioProcessingState toAudioProcessingState() {
+    return switch (this) {
+      PlayerEngineProcessingState.idle => AudioProcessingState.idle,
+      PlayerEngineProcessingState.loading => AudioProcessingState.loading,
+      PlayerEngineProcessingState.buffering => AudioProcessingState.buffering,
+      PlayerEngineProcessingState.ready => AudioProcessingState.ready,
+      PlayerEngineProcessingState.completed => AudioProcessingState.completed,
+    };
+  }
+}
+
 class _EnginePlaybackSnapshot {
   const _EnginePlaybackSnapshot({
     this.position = Duration.zero,
@@ -1334,7 +1351,7 @@ class _EnginePlaybackSnapshot {
     this.duration,
     this.volume = 1.0,
     this.playing = false,
-    this.processingState = audio.ProcessingState.idle,
+    this.processingState = PlayerEngineProcessingState.idle,
   });
 
   final Duration position;
@@ -1342,7 +1359,7 @@ class _EnginePlaybackSnapshot {
   final Duration? duration;
   final double volume;
   final bool playing;
-  final audio.ProcessingState processingState;
+  final PlayerEngineProcessingState processingState;
 
   _EnginePlaybackSnapshot copyWith({
     Duration? position,
@@ -1350,7 +1367,7 @@ class _EnginePlaybackSnapshot {
     Duration? duration,
     double? volume,
     bool? playing,
-    audio.ProcessingState? processingState,
+    PlayerEngineProcessingState? processingState,
   }) {
     return _EnginePlaybackSnapshot(
       position: position ?? this.position,

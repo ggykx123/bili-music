@@ -1,86 +1,186 @@
-import 'package:flutter/foundation.dart';
-import 'package:just_audio/just_audio.dart' as audio;
+import 'dart:async';
+
+import 'package:media_kit/media_kit.dart' as media_kit;
 
 class PlayerAudioEngine {
-  PlayerAudioEngine()
-    : _audioPlayer = audio.AudioPlayer(
-        androidApplyAudioAttributes: false,
-        handleInterruptions: false,
-        useProxyForRequestHeaders: !_shouldDisableRequestHeadersProxy,
-      );
-
-  final audio.AudioPlayer _audioPlayer;
-
-  static bool get _shouldDisableRequestHeadersProxy {
-    if (kIsWeb) {
-      return true;
-    }
-    // return switch (defaultTargetPlatform) {
-    //   TargetPlatform.windows => true,
-    //   TargetPlatform.linux => true,
-    //   _ => false,
-    // };
-    return false;
+  PlayerAudioEngine() : _player = media_kit.Player() {
+    _subscriptions.addAll(<StreamSubscription<dynamic>>[
+      _player.stream.playing.listen((_) => _emitPlayerState()),
+      _player.stream.buffering.listen((_) => _emitPlayerState()),
+      _player.stream.completed.listen((_) => _emitPlayerState()),
+    ]);
   }
 
-  bool get playing => _audioPlayer.playing;
-  double get volume => _audioPlayer.volume;
-  Duration get position => _audioPlayer.position;
-  audio.ProcessingState get processingState => _audioPlayer.processingState;
+  final media_kit.Player _player;
+  final StreamController<PlayerEngineState> _playerStateController =
+      StreamController<PlayerEngineState>.broadcast();
+  final List<StreamSubscription<dynamic>> _subscriptions =
+      <StreamSubscription<dynamic>>[];
+  bool _hasSource = false;
+  bool _isOpening = false;
 
-  Stream<Duration> get positionStream => _audioPlayer.positionStream;
-  Stream<Duration> get bufferedPositionStream =>
-      _audioPlayer.bufferedPositionStream;
-  Stream<Duration?> get durationStream => _audioPlayer.durationStream;
-  Stream<audio.PlayerException> get errorStream => _audioPlayer.errorStream;
-  Stream<double> get volumeStream => _audioPlayer.volumeStream;
-  Stream<audio.PlayerState> get playerStateStream =>
-      _audioPlayer.playerStateStream;
+  bool get playing => _player.state.playing;
+  double get volume => _player.state.volume / 100.0;
+  Duration get position => _player.state.position;
+  PlayerEngineProcessingState get processingState => _processingState;
+
+  Stream<Duration> get positionStream => _player.stream.position;
+  Stream<Duration> get bufferedPositionStream => _player.stream.buffer;
+  Stream<Duration?> get durationStream => _player.stream.duration.map(
+    (Duration duration) => duration == Duration.zero ? null : duration,
+  );
+  Stream<PlayerEngineException> get errorStream =>
+      _player.stream.error.map(PlayerEngineException.new);
+  Stream<double> get volumeStream => _player.stream.volume.map(
+    (double volume) => (volume / 100.0).clamp(0.0, 1.0).toDouble(),
+  );
+  Stream<PlayerEngineState> get playerStateStream =>
+      _playerStateController.stream;
 
   Future<Duration?> setRemoteSource({
     required Uri uri,
     Map<String, String>? headers,
-    dynamic tag,
     Duration? initialPosition,
-  }) {
-    return _audioPlayer.setAudioSource(
-      audio.AudioSource.uri(uri, headers: headers, tag: tag),
+  }) async {
+    await _openMedia(
+      media_kit.Media(uri.toString(), httpHeaders: headers),
       initialPosition: initialPosition,
     );
+    return _durationOrNull;
   }
 
   Future<Duration?> setFileSource({
     required String filePath,
-    dynamic tag,
     Duration? initialPosition,
-  }) {
-    return _audioPlayer.setAudioSource(
-      audio.AudioSource.file(filePath, tag: tag),
+  }) async {
+    await _openMedia(
+      media_kit.Media(Uri.file(filePath).toString()),
       initialPosition: initialPosition,
     );
+    return _durationOrNull;
   }
 
   Future<void> play() {
-    return _audioPlayer.play();
+    return _player.play();
   }
 
   Future<void> pause() {
-    return _audioPlayer.pause();
+    return _player.pause();
   }
 
-  Future<void> stop() {
-    return _audioPlayer.stop();
+  Future<void> stop() async {
+    await _player.stop();
+    _hasSource = false;
+    _isOpening = false;
+    _emitPlayerState();
   }
 
   Future<void> seek(Duration position) {
-    return _audioPlayer.seek(position);
+    return _player.seek(position);
   }
 
   Future<void> setVolume(double volume) {
-    return _audioPlayer.setVolume(volume);
+    return _player.setVolume(volume.clamp(0.0, 1.0) * 100.0);
   }
 
-  Future<void> dispose() {
-    return _audioPlayer.dispose();
+  Future<void> dispose() async {
+    for (final StreamSubscription<dynamic> subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    await _playerStateController.close();
+    await _player.dispose();
+  }
+
+  Future<void> _openMedia(
+    media_kit.Media media, {
+    Duration? initialPosition,
+  }) async {
+    _hasSource = false;
+    _isOpening = true;
+    _emitPlayerState();
+    try {
+      await _player.open(media, play: false);
+      _hasSource = true;
+      final Duration? position = initialPosition;
+      if (position != null && position > Duration.zero) {
+        await _player.seek(position);
+      }
+    } finally {
+      _isOpening = false;
+      _emitPlayerState();
+    }
+  }
+
+  Duration? get _durationOrNull {
+    final Duration duration = _player.state.duration;
+    return duration == Duration.zero ? null : duration;
+  }
+
+  PlayerEngineProcessingState get _processingState {
+    final media_kit.PlayerState state = _player.state;
+    if (_isOpening) {
+      return PlayerEngineProcessingState.loading;
+    }
+    if (state.completed) {
+      return PlayerEngineProcessingState.completed;
+    }
+    if (state.buffering) {
+      return PlayerEngineProcessingState.buffering;
+    }
+    if (!_hasSource) {
+      return PlayerEngineProcessingState.idle;
+    }
+    return PlayerEngineProcessingState.ready;
+  }
+
+  void _emitPlayerState() {
+    if (_playerStateController.isClosed) {
+      return;
+    }
+    _playerStateController.add(
+      PlayerEngineState(
+        playing: _player.state.playing,
+        processingState: _processingState,
+      ),
+    );
+  }
+}
+
+class PlayerEngineState {
+  const PlayerEngineState({
+    required this.playing,
+    required this.processingState,
+  });
+
+  final bool playing;
+  final PlayerEngineProcessingState processingState;
+}
+
+class PlayerEngineException implements Exception {
+  const PlayerEngineException(this.message, {this.code});
+
+  final String message;
+  final Object? code;
+
+  @override
+  String toString() {
+    if (code == null) {
+      return message;
+    }
+    return '$message (code: $code)';
+  }
+}
+
+enum PlayerEngineProcessingState { idle, loading, buffering, ready, completed }
+
+extension PlayerEngineProcessingStateX on PlayerEngineProcessingState {
+  bool get isBuffering {
+    return this == PlayerEngineProcessingState.loading ||
+        this == PlayerEngineProcessingState.buffering;
+  }
+
+  bool get isReady {
+    return this != PlayerEngineProcessingState.idle &&
+        this != PlayerEngineProcessingState.loading;
   }
 }
