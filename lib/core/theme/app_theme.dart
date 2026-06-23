@@ -1,4 +1,5 @@
 import 'package:bilimusic/common/util/platform_util.dart';
+import 'package:bilimusic/core/theme/components/no_transition_builder.dart';
 import 'package:bilimusic/core/theme/desktop_chinese_font.dart';
 import 'package:bilimusic/core/theme/theme_catalog.dart';
 import 'package:chinese_font_library/chinese_font_library.dart';
@@ -39,6 +40,9 @@ final class AppTheme {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {TargetPlatform.windows: NoTransitionBuilder()},
       ),
     );
   }
