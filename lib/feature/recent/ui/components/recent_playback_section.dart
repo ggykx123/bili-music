@@ -12,9 +12,10 @@ class RecentPlaybackSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
-    final List<RecentPlaybackEntry> items = ref.watch(
-      recentPlaybackControllerProvider,
-    );
+    final List<RecentPlaybackEntry> items = ref
+        .watch(recentPlaybackControllerProvider)
+        .take(10)
+        .toList(growable: false);
 
     if (items.isEmpty) {
       return const SizedBox.shrink();

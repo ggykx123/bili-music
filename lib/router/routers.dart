@@ -10,6 +10,7 @@ import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/ui/desktop_player_page.dart';
 import 'package:bilimusic/feature/favorites/ui/import/import_page.dart';
 import 'package:bilimusic/feature/profile/ui/profile_page.dart';
+import 'package:bilimusic/feature/recent/ui/desktop/desktop_recent_playback_page.dart';
 import 'package:bilimusic/feature/search/ui/search_page.dart';
 import 'package:bilimusic/feature/setting/ui/about_settings_page.dart';
 import 'package:bilimusic/feature/setting/ui/cache_settings_page.dart';
@@ -134,7 +135,17 @@ final List<Map<String, dynamic>> mobileHiddenBranches = [
 ];
 
 final List<Map<String, dynamic>> desktopTabs = [
-  ...mobileTabs,
+  mobileTabs[0],
+  {
+    ...mobileTabs[1],
+    'routes': <RouteBase>[
+      ...(mobileTabs[1]['routes'] as List<RouteBase>),
+      GoRoute(
+        path: 'recent',
+        builder: (context, state) => const DesktopRecentPlaybackPage(),
+      ),
+    ],
+  },
   {
     'path': '/search',
     'builder': (context, state) => const SearchPage(),

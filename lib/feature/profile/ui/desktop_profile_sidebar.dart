@@ -13,6 +13,7 @@ import 'package:bilimusic/feature/favorites/domain/favorite_entry.dart';
 import 'package:bilimusic/feature/favorites/domain/favorites_state.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
 import 'package:bilimusic/feature/profile/ui/components/remote_collection_import_dialog.dart';
+import 'package:bilimusic/feature/recent/logic/recent_playback_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -60,9 +61,11 @@ class _DesktopProfileSidebarState extends ConsumerState<DesktopProfileSidebar> {
     final int likedCount = favoritesState.itemCountForCollection(
       FavoriteCollection.likedCollectionId,
     );
+    final int recentCount = ref.watch(recentPlaybackControllerProvider).length;
     final bool isLikedSelected =
         widget.currentLocation ==
         '/profile/favorites/${FavoriteCollection.likedCollectionId}';
+    final bool isRecentSelected = widget.currentLocation == '/profile/recent';
     final List<FavoriteCollection> remoteCollections = favoritesState
         .collections
         .where((FavoriteCollection collection) => collection.isRemote)
@@ -128,6 +131,20 @@ class _DesktopProfileSidebarState extends ConsumerState<DesktopProfileSidebar> {
             onTap: () => context.go(
               '/profile/favorites/${FavoriteCollection.likedCollectionId}',
             ),
+          ),
+          const SizedBox(height: 8),
+          _SidebarListItem(
+            leading: Icon(
+              Icons.history_rounded,
+              size: 22,
+              color: isRecentSelected
+                  ? Colors.black
+                  : colorScheme.onSurfaceVariant,
+            ),
+            title: '最近播放',
+            count: recentCount,
+            isSelected: isRecentSelected,
+            onTap: () => context.go('/profile/recent'),
           ),
           const SizedBox(height: 22),
           _CollectionHeader(
