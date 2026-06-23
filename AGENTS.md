@@ -80,7 +80,7 @@ Before running any `flutter` or `dart` command, first ensure the command is exec
 - Within a feature, keep responsibilities split by layer:
 - `domain`: enums, immutable models, simple state objects, value types.
 - `data`: repository and persistence/network translation logic.
-- `logic`: Riverpod providers, notifiers, orchestration, polling, state transitions.
+- `logic`: Riverpod providers, generated notifiers, orchestration, polling, state transitions.
 - `ui`: widgets, view composition, widget-only presentation logic.
 - Put reusable infrastructure in `lib/core/` rather than inside one feature.
 - Keep routing centralized in `lib/router/`.
@@ -119,6 +119,7 @@ Before running any `flutter` or `dart` command, first ensure the command is exec
 
 ## Riverpod Conventions
 - This repo uses generator-based Riverpod via `@riverpod` and generated `*.g.dart` files.
+- Riverpod is allowed only in `logic` layers; keep `data` and `domain` free of Riverpod imports, annotations, providers, and `Ref` dependencies.
 - Riverpod providers must use generator annotations (`@riverpod`) and generated `*.g.dart` wiring.
 - When adding or refactoring providers, use `@riverpod`/generated notifiers rather than manual provider declarations.
 - Prefer keeping provider declaration and implementation in the same source file.
