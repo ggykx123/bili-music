@@ -165,6 +165,14 @@ class AppTransferRepository {
     }
   }
 
+  Map<String, String> buildSettingsSnapshot() {
+    return _readExportedSettings();
+  }
+
+  Future<void> importSettingsSnapshot(Map<String, String> settings) {
+    return _applyImportedSettings(_sanitizeImportedSettings(settings));
+  }
+
   FavoritesTransferBundle _buildExportBundle(FavoritesState state) {
     final Set<String> exportedCollectionIds = state.collections
         .map((FavoriteCollection collection) => collection.id)

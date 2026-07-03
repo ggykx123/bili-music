@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:bilimusic/common/util/format_util.dart';
@@ -13,6 +12,7 @@ import 'package:bilimusic/feature/setting/domain/app_import_preview.dart';
 import 'package:bilimusic/feature/setting/domain/webdav_config.dart';
 import 'package:bilimusic/feature/setting/logic/appearance_setting_logic.dart';
 import 'package:bilimusic/feature/setting/logic/app_transfer_controller.dart';
+import 'package:bilimusic/feature/setting/logic/clipboard_sync_controller.dart';
 import 'package:bilimusic/feature/setting/logic/webdav_logic.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -54,12 +54,115 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final ClipboardSyncState clipboardSyncState = ref.watch(
+      clipboardSyncControllerProvider,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('数据导入导出')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: <Widget>[
+          ExpansionTile(
+            initiallyExpanded: true,
+            title: const Text('网络剪贴板同步'),
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '通过 jq.torgw.com 同步我喜欢、自建歌单、黑名单和设置项。',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    _InfoLine(
+                      label: '剪贴板名称',
+                      value: clipboardSyncState.clipboardName ?? '登录后生成',
+                    ),
+                    _InfoLine(
+                      label: '状态',
+                      value: _clipboardSyncStatusText(clipboardSyncState),
+                    ),
+                    _InfoLine(
+                      label: '最近上传',
+                      value: _formatNullableDateTime(
+                        clipboardSyncState.lastUploadedAt,
+                      ),
+                    ),
+                    _InfoLine(
+                      label: '最近同步',
+                      value: _formatNullableDateTime(
+                        clipboardSyncState.lastSyncedAt,
+                      ),
+                    ),
+                    if (clipboardSyncState.message?.isNotEmpty == true) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        clipboardSyncState.message!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color:
+                              clipboardSyncState.phase ==
+                                  ClipboardSyncPhase.failure
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed:
+                                clipboardSyncState.clipboardName == null ||
+                                    clipboardSyncState.isBusy
+                                ? null
+                                : _handleClipboardUploadPressed,
+                            icon:
+                                clipboardSyncState.phase ==
+                                    ClipboardSyncPhase.uploading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.cloud_upload_rounded),
+                            label: const Text('立即上传'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed:
+                                clipboardSyncState.clipboardName == null ||
+                                    clipboardSyncState.isBusy
+                                ? null
+                                : _handleClipboardSyncPressed,
+                            icon:
+                                clipboardSyncState.phase ==
+                                    ClipboardSyncPhase.syncing
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.sync_rounded),
+                            label: const Text('手动同步'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           ExpansionTile(
             title: const Text('WebDAV 配置'),
             children: [
@@ -308,20 +411,13 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
       final FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const <String>['json'],
-        withData: true,
       );
       if (result == null || result.files.isEmpty) {
         return;
       }
 
       final PlatformFile file = result.files.first;
-      Uint8List? bytes;
-      if (file.path != null) {
-        bytes = await File(file.path!).readAsBytes();
-      }
-      if (bytes == null) {
-        throw const _TransferUiException('读取导入文件失败。');
-      }
+      final Uint8List bytes = await file.readAsBytes();
 
       final AppTransferController controller = ref.read(
         appTransferControllerProvider,
@@ -367,6 +463,24 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
         });
       }
     }
+  }
+
+  Future<void> _handleClipboardUploadPressed() async {
+    await ref.read(clipboardSyncControllerProvider.notifier).uploadNow();
+    if (!mounted) {
+      return;
+    }
+    final ClipboardSyncState state = ref.read(clipboardSyncControllerProvider);
+    ToastUtil.show(state.message ?? '上传完成');
+  }
+
+  Future<void> _handleClipboardSyncPressed() async {
+    await ref.read(clipboardSyncControllerProvider.notifier).syncNow();
+    if (!mounted) {
+      return;
+    }
+    final ClipboardSyncState state = ref.read(clipboardSyncControllerProvider);
+    ToastUtil.show(state.message ?? '同步完成');
   }
 
   Future<void> _handleSaveWebDav() async {
@@ -587,6 +701,59 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
     ref.invalidate(appearanceSettingLogicProvider);
     ref.invalidate(playerSettingsLogicProvider);
     ref.invalidate(playerAudioQualityPreferenceLogicProvider);
+  }
+
+  String _clipboardSyncStatusText(ClipboardSyncState state) {
+    return switch (state.phase) {
+      ClipboardSyncPhase.idle => '待同步',
+      ClipboardSyncPhase.scheduled => '等待自动上传',
+      ClipboardSyncPhase.uploading => '正在上传',
+      ClipboardSyncPhase.syncing => '正在同步',
+      ClipboardSyncPhase.success => '已完成',
+      ClipboardSyncPhase.failure => '失败',
+    };
+  }
+
+  String _formatNullableDateTime(DateTime? value) {
+    if (value == null) {
+      return '-';
+    }
+    final String yyyy = value.year.toString().padLeft(4, '0');
+    final String mm = value.month.toString().padLeft(2, '0');
+    final String dd = value.day.toString().padLeft(2, '0');
+    final String hh = value.hour.toString().padLeft(2, '0');
+    final String min = value.minute.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd $hh:$min';
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: theme.textTheme.bodySmall)),
+        ],
+      ),
+    );
   }
 }
 
@@ -965,13 +1132,4 @@ class _ImportDecision {
   final bool importLikedCollection;
   final Set<String> selectedCollectionIds;
   final bool importSettings;
-}
-
-class _TransferUiException implements Exception {
-  const _TransferUiException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }

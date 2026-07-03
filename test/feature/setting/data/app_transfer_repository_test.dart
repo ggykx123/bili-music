@@ -155,6 +155,24 @@ void main() {
     );
   });
 
+  test('settings snapshot imports only transfer-safe setting keys', () async {
+    await prefsBox.put(HiveKeys.playerBlacklistEntries, '[]');
+    await transferRepository.importSettingsSnapshot(<String, String>{
+      HiveKeys.playerLyricFontSizePreference: 'large',
+      HiveKeys.biliSessData: 'secret',
+      HiveKeys.webDavPassword: 'webdav-secret',
+    });
+
+    expect(
+      transferRepository
+          .buildSettingsSnapshot()[HiveKeys.playerBlacklistEntries],
+      '[]',
+    );
+    expect(prefsBox.get(HiveKeys.playerLyricFontSizePreference), 'large');
+    expect(prefsBox.get(HiveKeys.biliSessData), isNull);
+    expect(prefsBox.get(HiveKeys.webDavPassword), isNull);
+  });
+
   test(
     'importBytes merges liked items and creates copy for same-name playlist',
     () async {
