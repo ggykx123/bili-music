@@ -31,19 +31,31 @@ abstract class PlayableItem with _$PlayableItem {
 
   bool get hasIdentity => aid > 0 || bvid.isNotEmpty;
 
-  bool get hasPageTitle => (pageTitle?.trim() ?? '').isNotEmpty;
+  static final RegExp _numericTitlePattern = RegExp(r'^\d+$');
 
-  String get displayTitle {
+  String? get displayPageTitle {
     final String trimmedPageTitle = pageTitle?.trim() ?? '';
     if (trimmedPageTitle.isEmpty) {
+      return null;
+    }
+    if (ownerMid != null && trimmedPageTitle == ownerMid.toString()) {
+      return null;
+    }
+    if (_numericTitlePattern.hasMatch(trimmedPageTitle)) {
+      return null;
+    }
+    return trimmedPageTitle;
+  }
+
+  bool get hasPageTitle => displayPageTitle != null;
+
+  String get displayTitle {
+    final String? resolvedPageTitle = displayPageTitle;
+    if (resolvedPageTitle == null) {
       return title;
     }
 
-    final int? resolvedPage = page;
-    if (resolvedPage == null || resolvedPage <= 0) {
-      return trimmedPageTitle;
-    }
-    return 'P$resolvedPage · $trimmedPageTitle';
+    return resolvedPageTitle;
   }
 
   String get displaySubtitle {
@@ -55,7 +67,7 @@ abstract class PlayableItem with _$PlayableItem {
 
   List<String> get lyricSearchTitles {
     final List<String> titles = <String>[];
-    final String partTitle = pageTitle?.trim() ?? '';
+    final String partTitle = displayPageTitle ?? '';
     final String videoTitle = title.trim();
 
     if (partTitle.isNotEmpty) {

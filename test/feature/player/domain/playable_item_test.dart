@@ -34,7 +34,7 @@ void main() {
         page: 2,
       );
 
-      expect(item.displayTitle, 'P2 · Part Title');
+      expect(item.displayTitle, 'Part Title');
       expect(item.displaySubtitle, 'Video Title');
     });
 
@@ -44,16 +44,54 @@ void main() {
       expect(item.displayTitle, 'Video Title');
       expect(item.displaySubtitle, 'author');
     });
+
+    test('displayTitle ignores owner mid stored as page title', () {
+      final PlayableItem item = _item(
+        title: 'Video Title',
+        pageTitle: '1782644779321',
+        ownerMid: 1782644779321,
+      );
+
+      expect(item.hasPageTitle, isFalse);
+      expect(item.displayTitle, 'Video Title');
+      expect(item.displaySubtitle, 'author');
+    });
+
+    test('displayTitle ignores numeric page title', () {
+      final PlayableItem item = _item(
+        title: 'Video Title',
+        pageTitle: '1779235553988',
+      );
+
+      expect(item.hasPageTitle, isFalse);
+      expect(item.displayTitle, 'Video Title');
+      expect(item.displaySubtitle, 'author');
+    });
+
+    test('lyricSearchTitles ignores numeric page title', () {
+      final PlayableItem item = _item(
+        title: 'Video Title',
+        pageTitle: '1779235553988',
+      );
+
+      expect(item.lyricSearchTitles, <String>['Video Title']);
+    });
   });
 }
 
-PlayableItem _item({required String title, String? pageTitle, int? page}) {
+PlayableItem _item({
+  required String title,
+  String? pageTitle,
+  int? page,
+  int? ownerMid,
+}) {
   return PlayableItem(
     aid: 1,
     bvid: 'BVTEST123',
     title: title,
     author: 'author',
     coverUrl: 'https://example.com/cover.jpg',
+    ownerMid: ownerMid,
     page: page,
     pageTitle: pageTitle,
   );

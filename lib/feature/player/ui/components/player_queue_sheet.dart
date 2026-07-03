@@ -2,6 +2,7 @@ import 'package:bilimusic/common/components/desktop/desktop_side_panel.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
 import 'package:bilimusic/feature/player/domain/player_state.dart';
 import 'package:bilimusic/feature/player/logic/player_controller.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -215,8 +216,8 @@ class _PlayerQueueContentState extends ConsumerState<_PlayerQueueContent> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: <Widget>[
-                                  Text(
-                                    queuedItem.displayTitle,
+                                  CachedPlayableTitleText(
+                                    item: queuedItem,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.titleSmall?.copyWith(
@@ -224,8 +225,8 @@ class _PlayerQueueContentState extends ConsumerState<_PlayerQueueContent> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    queuedItem.displaySubtitle,
+                                  CachedPlayableSubtitleText(
+                                    item: queuedItem,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.bodySmall?.copyWith(

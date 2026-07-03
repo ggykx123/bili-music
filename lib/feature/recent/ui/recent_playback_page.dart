@@ -3,6 +3,7 @@ import 'package:bilimusic/common/components/bottom_page_spacer.dart';
 import 'package:bilimusic/common/components/cached_image.dart';
 import 'package:bilimusic/common/util/player_util.dart';
 import 'package:bilimusic/feature/player/domain/playable_item.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:bilimusic/feature/recent/domain/recent_playback_entry.dart';
 import 'package:bilimusic/feature/recent/logic/recent_playback_controller.dart';
 import 'package:flutter/material.dart';
@@ -90,16 +91,16 @@ class RecentPlaybackPage extends ConsumerWidget {
                       iconColor: primary,
                       backgroundColor: primary.withValues(alpha: 0.14),
                     ),
-                    title: Text(
-                      playableItem.displayTitle,
+                    title: CachedPlayableTitleText(
+                      item: playableItem,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    subtitle: Text(
-                      playableItem.displaySubtitle,
+                    subtitle: CachedPlayableSubtitleText(
+                      item: playableItem,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(

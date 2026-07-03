@@ -55,6 +55,10 @@ class DesktopPlayerBar extends ConsumerWidget {
     final bool canGoNext =
         state.isReady &&
         (state.queueMode == PlayerQueueMode.singleRepeat || state.hasNext);
+    final String commentTitle = resolveDisplayTitle(
+      item: item,
+      metadata: metadataState.metadata,
+    );
 
     return Container(
       height: 76,
@@ -88,7 +92,7 @@ class DesktopPlayerBar extends ConsumerWidget {
                           extra: CommentTarget.video(
                             aid: item.aid,
                             bvid: item.bvid,
-                            title: item.displayTitle,
+                            title: commentTitle,
                             coverUrl: item.coverUrl,
                           ),
                         );
@@ -167,6 +171,10 @@ class _TrackSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final String title = resolveDisplayTitle(
+      item: item,
+      metadata: metadataState.metadata,
+    );
 
     return Row(
       children: <Widget>[
@@ -181,7 +189,7 @@ class _TrackSection extends StatelessWidget {
               Semantics(
                 child: ExcludeSemantics(
                   child: PingPongMarqueePlus(
-                    text: item?.displayTitle ?? '未选择播放内容',
+                    text: title,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),

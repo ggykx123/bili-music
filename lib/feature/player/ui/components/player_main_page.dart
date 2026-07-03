@@ -9,8 +9,10 @@ import 'package:bilimusic/feature/player/logic/player_online_audience_controller
 import 'package:bilimusic/feature/player/logic/player_progress_provider.dart';
 import 'package:bilimusic/feature/player/ui/components/player_artwork.dart';
 import 'package:bilimusic/feature/player/ui/components/player_controls.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:bilimusic/feature/player/ui/components/player_quality_badge.dart';
 import 'package:bilimusic/feature/player/ui/components/player_shared.dart';
+import 'package:bilimusic/feature/metadata/domain/metadata.dart';
 import 'package:bilimusic/feature/player/logic/utils/player_progress_ui_helpers.dart';
 import 'package:bilimusic/feature/player/logic/utils/player_ui_helpers.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +25,7 @@ class PlayerMainPage extends ConsumerWidget {
     super.key,
     required this.state,
     required this.item,
+    required this.metadata,
     required this.displayCoverUrl,
     required this.commentCount,
     required this.availableParts,
@@ -42,6 +45,7 @@ class PlayerMainPage extends ConsumerWidget {
 
   final PlayerState state;
   final PlayableItem? item;
+  final Metadata? metadata;
   final String? displayCoverUrl;
   final int? commentCount;
   final List<PlayableItem> availableParts;
@@ -83,6 +87,7 @@ class PlayerMainPage extends ConsumerWidget {
           child: _PlayerHeroAndTitle(
             artworkSize: artworkSize,
             item: item,
+            metadata: metadata,
             displayCoverUrl: displayCoverUrl,
             isFavorite: isFavorite,
             onlineAudienceLabel: onlineAudienceLabel,
@@ -144,6 +149,7 @@ class _PlayerHeroAndTitle extends StatelessWidget {
   const _PlayerHeroAndTitle({
     required this.artworkSize,
     required this.item,
+    required this.metadata,
     required this.displayCoverUrl,
     required this.isFavorite,
     required this.onlineAudienceLabel,
@@ -152,6 +158,7 @@ class _PlayerHeroAndTitle extends StatelessWidget {
 
   final double artworkSize;
   final PlayableItem? item;
+  final Metadata? metadata;
   final String? displayCoverUrl;
   final bool isFavorite;
   final String? onlineAudienceLabel;
@@ -175,10 +182,16 @@ class _PlayerHeroAndTitle extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         PlayerTrackHeader(
-          title: item?.displayTitle ?? '还没有选择播放内容',
-          subtitle: item == null
-              ? '从搜索页选一条视频或音频后，这里会显示当前播放信息。'
-              : item!.displaySubtitle,
+          title: resolveDisplayTitle(
+            item: item,
+            metadata: metadata,
+            fallback: '还没有选择播放内容',
+          ),
+          subtitle: resolveDisplaySubtitle(
+            item: item,
+            metadata: metadata,
+            fallback: '从搜索页选一条视频或音频后，这里会显示当前播放信息。',
+          ),
           isFavoriteEnabled: item != null,
           isFavorite: isFavorite,
           onFavoriteToggle: onFavoriteToggle,

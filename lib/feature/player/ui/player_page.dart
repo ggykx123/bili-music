@@ -146,6 +146,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                               child: PlayerMainPage(
                                 state: state,
                                 item: item,
+                                metadata: metadataState.metadata,
                                 displayCoverUrl: displayCoverUrl,
                                 commentCount: item?.replyCount,
                                 availableParts: availableParts,
@@ -238,16 +239,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _addToBlacklist(PlayableItem item) async {
+    final String displayTitle = resolveDisplayTitle(
+      item: item,
+      metadata: ref.read(metadataControllerProvider).metadata,
+    );
     final bool confirmed =
         await showDialog<bool>(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               title: const Text('加入黑名单'),
-              content: Text(
-                '将“${item.displayTitle}”加入黑名单，并从播放队列中移除。'
-                '后续可在播放器设置中管理。',
-              ),
+              content: Text('将“$displayTitle”加入黑名单，并从播放队列中移除。后续可在播放器设置中管理。'),
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -283,7 +285,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final CommentTarget target = CommentTarget.video(
       aid: item.aid,
       bvid: item.bvid,
-      title: item.displayTitle,
+      title: resolveDisplayTitle(
+        item: item,
+        metadata: ref.read(metadataControllerProvider).metadata,
+      ),
       coverUrl: item.coverUrl,
     );
     // 适用 navigator 进入，不用 go_router，使评论区压在播放器上。

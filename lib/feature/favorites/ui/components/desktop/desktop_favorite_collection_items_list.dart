@@ -2,7 +2,8 @@ import 'package:bilimusic/common/bm_icons.dart';
 import 'package:bilimusic/common/components/cached_image.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_entry.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_entry_group.dart';
-import 'package:bilimusic/feature/favorites/ui/components/favorite_entry_subtitle.dart';
+import 'package:bilimusic/feature/player/domain/playable_item.dart';
+import 'package:bilimusic/feature/player/ui/components/player_display_metadata.dart';
 import 'package:flutter/material.dart';
 
 typedef DesktopFavoriteCollectionItemCallback =
@@ -203,6 +204,7 @@ class _DesktopFavoriteCollectionItemTile extends StatelessWidget {
     final ColorScheme colorScheme = theme.colorScheme;
     final Color primary = colorScheme.primary;
     final bool isEvenRow = index.isEven;
+    final PlayableItem playableItem = item.toPlayableItem();
 
     return Material(
       color: isEvenRow ? Colors.transparent : null,
@@ -224,16 +226,16 @@ class _DesktopFavoriteCollectionItemTile extends StatelessWidget {
                 iconColor: primary,
                 backgroundColor: primary.withValues(alpha: 0.14),
               ),
-        title: Text(
-          buildFavoriteEntryTitle(item),
+        title: CachedPlayableTitleText(
+          item: playableItem,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w700,
           ),
         ),
-        subtitle: Text(
-          buildFavoriteEntrySubtitle(item),
+        subtitle: CachedPlayableSubtitleText(
+          item: playableItem,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
