@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bilimusic/common/util/toast_util.dart';
 import 'package:bilimusic/feature/comment/domain/comment_target.dart';
 import 'package:bilimusic/feature/comment/ui/comment_page.dart';
@@ -31,8 +33,13 @@ class PlayerPage extends ConsumerStatefulWidget {
 }
 
 class _PlayerPageState extends ConsumerState<PlayerPage> {
+  static const double _trackSwipeTriggerDistance = 80;
+  static const double _trackSwipeDominanceRatio = 1.4;
+
   late final PageController _pageController;
   int _currentPage = 1;
+  Offset _trackSwipeDelta = Offset.zero;
+  bool _trackSwipeHandled = false;
 
   @override
   void initState() {
@@ -76,6 +83,42 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       startIndex: 0,
       sourceLabel: '当前播放',
     );
+  }
+
+  void _resetTrackSwipe() {
+    _trackSwipeDelta = Offset.zero;
+    _trackSwipeHandled = false;
+  }
+
+  void _handleTrackSwipeUpdate(
+    DragUpdateDetails details,
+    PlayerController controller,
+    PlayerState state,
+  ) {
+    if (_trackSwipeHandled || _currentPage == 2) {
+      return;
+    }
+
+    _trackSwipeDelta += details.delta;
+    final double verticalDistance = _trackSwipeDelta.dy.abs();
+    final double horizontalDistance = _trackSwipeDelta.dx.abs();
+    if (verticalDistance < _trackSwipeTriggerDistance ||
+        verticalDistance < horizontalDistance * _trackSwipeDominanceRatio) {
+      return;
+    }
+
+    _trackSwipeHandled = true;
+    if (!state.isReady) {
+      return;
+    }
+    if (_trackSwipeDelta.dy < 0 &&
+        (state.queueMode == PlayerQueueMode.singleRepeat || state.hasNext)) {
+      unawaited(controller.skipToNext());
+      return;
+    }
+    if (_trackSwipeDelta.dy > 0 && state.hasPrevious) {
+      unawaited(controller.skipToPrevious());
+    }
   }
 
   @override
@@ -143,63 +186,76 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                               ),
-                              child: PlayerMainPage(
-                                state: state,
-                                item: item,
-                                metadata: metadataState.metadata,
-                                displayCoverUrl: displayCoverUrl,
-                                commentCount: item?.replyCount,
-                                availableParts: availableParts,
-                                onPartTap:
-                                    item == null || availableParts.length < 2
-                                    ? null
-                                    : () => showPlayerPartSelector(
-                                        context: context,
-                                        parts: availableParts,
-                                        currentItem: item,
-                                        state: state,
-                                        controller: playerController,
-                                      ),
-                                onOpenCollectionSheet: item == null
-                                    ? null
-                                    : () => showPlayerCollectionSheet(
-                                        context: context,
-                                        item: item,
-                                      ),
-                                onAddToBlacklist: item == null
-                                    ? null
-                                    : () => _addToBlacklist(item),
-                                isFavorite: isFavorite,
-                                onFavoriteToggle: item == null
-                                    ? null
-                                    : () => _toggleFavorite(item),
-                                onSeek: (double value) {
-                                  final int totalMs =
-                                      (ref
-                                                  .read(
-                                                    playerControllerProvider,
-                                                  )
-                                                  .duration ??
-                                              Duration.zero)
-                                          .inMilliseconds;
-                                  final Duration position = Duration(
-                                    milliseconds: (totalMs * value).round(),
-                                  );
-                                  playerController.seek(position);
-                                },
-                                onToggleQueueMode:
-                                    playerController.toggleQueueMode,
-                                onBackward: playerController.skipToPrevious,
-                                onTogglePlayback:
-                                    playerController.togglePlayback,
-                                onForward: playerController.skipToNext,
-                                onOpenQueue: () => showPlayerQueueSheet(
-                                  context: context,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onVerticalDragStart: (_) => _resetTrackSwipe(),
+                                onVerticalDragUpdate:
+                                    (DragUpdateDetails details) =>
+                                        _handleTrackSwipeUpdate(
+                                          details,
+                                          playerController,
+                                          state,
+                                        ),
+                                onVerticalDragEnd: (_) => _resetTrackSwipe(),
+                                onVerticalDragCancel: _resetTrackSwipe,
+                                child: PlayerMainPage(
                                   state: state,
+                                  item: item,
+                                  metadata: metadataState.metadata,
+                                  displayCoverUrl: displayCoverUrl,
+                                  commentCount: item?.replyCount,
+                                  availableParts: availableParts,
+                                  onPartTap:
+                                      item == null || availableParts.length < 2
+                                      ? null
+                                      : () => showPlayerPartSelector(
+                                          context: context,
+                                          parts: availableParts,
+                                          currentItem: item,
+                                          state: state,
+                                          controller: playerController,
+                                        ),
+                                  onOpenCollectionSheet: item == null
+                                      ? null
+                                      : () => showPlayerCollectionSheet(
+                                          context: context,
+                                          item: item,
+                                        ),
+                                  onAddToBlacklist: item == null
+                                      ? null
+                                      : () => _addToBlacklist(item),
+                                  isFavorite: isFavorite,
+                                  onFavoriteToggle: item == null
+                                      ? null
+                                      : () => _toggleFavorite(item),
+                                  onSeek: (double value) {
+                                    final int totalMs =
+                                        (ref
+                                                    .read(
+                                                      playerControllerProvider,
+                                                    )
+                                                    .duration ??
+                                                Duration.zero)
+                                            .inMilliseconds;
+                                    final Duration position = Duration(
+                                      milliseconds: (totalMs * value).round(),
+                                    );
+                                    playerController.seek(position);
+                                  },
+                                  onToggleQueueMode:
+                                      playerController.toggleQueueMode,
+                                  onBackward: playerController.skipToPrevious,
+                                  onTogglePlayback:
+                                      playerController.togglePlayback,
+                                  onForward: playerController.skipToNext,
+                                  onOpenQueue: () => showPlayerQueueSheet(
+                                    context: context,
+                                    state: state,
+                                  ),
+                                  onOpenComments: item == null
+                                      ? null
+                                      : () => _openComments(item),
                                 ),
-                                onOpenComments: item == null
-                                    ? null
-                                    : () => _openComments(item),
                               ),
                             ),
                             Padding(

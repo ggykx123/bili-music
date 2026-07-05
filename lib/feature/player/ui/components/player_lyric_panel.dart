@@ -334,10 +334,8 @@ class _PlayerLyricPanelState extends ConsumerState<PlayerLyricPanel> {
         fontFamilyFallback: fontFamilyFallback,
         height: 1.2,
       ),
-      textAlign: isDesktop ? TextAlign.center : TextAlign.left,
-      contentAlignment: isDesktop
-          ? CrossAxisAlignment.center
-          : CrossAxisAlignment.start,
+      textAlign: TextAlign.center,
+      contentAlignment: CrossAxisAlignment.center,
       contentPadding: const EdgeInsets.fromLTRB(8, 24, 8, 36),
       lineGap: isDesktop ? 20 : 36,
       translationLineGap: 8,
