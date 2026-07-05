@@ -519,7 +519,7 @@ class DesktopLyricsWindowController with WindowListener {
         rawLine,
       );
       if (qrcMatches.isNotEmpty) {
-        final String text = _stripLyricTimingMarks(
+        final String text = PlayerUtil.stripLyricTimingMarks(
           rawLine.replaceAll(qrcTimestampPattern, ''),
         );
         if (text.isEmpty) {
@@ -543,7 +543,7 @@ class DesktopLyricsWindowController with WindowListener {
       if (lrcMatches.isEmpty) {
         continue;
       }
-      final String text = _stripLyricTimingMarks(
+      final String text = PlayerUtil.stripLyricTimingMarks(
         rawLine.replaceAll(lrcTimestampPattern, ''),
       );
       if (text.isEmpty) {
@@ -575,16 +575,9 @@ class DesktopLyricsWindowController with WindowListener {
   List<String> _plainLyricLines(String lyrics) {
     return lyrics
         .split('\n')
-        .map(_stripLyricTimingMarks)
+        .map(PlayerUtil.stripLyricTimingMarks)
         .where((String line) => line.isNotEmpty)
         .toList(growable: false);
-  }
-
-  String _stripLyricTimingMarks(String line) {
-    return line
-        .replaceAll(RegExp(r'\(\d+,\d+\)'), '')
-        .replaceAll(RegExp(r'<\d+,\d+>'), '')
-        .trim();
   }
 
   int _fractionToMilliseconds(String fraction) {

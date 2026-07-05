@@ -5,7 +5,8 @@ import 'package:bilimusic/feature/favorites/domain/favorite_entry.dart';
 import 'package:bilimusic/feature/favorites/domain/favorite_membership.dart';
 import 'package:bilimusic/feature/favorites/domain/favorites_state.dart';
 
-const int clipboardSyncPayloadVersion = 1;
+const int clipboardSyncPayloadVersion = 3;
+const String _bm3Header = 'BM3';
 
 class ClipboardSyncPayload {
   const ClipboardSyncPayload({
@@ -21,11 +22,16 @@ class ClipboardSyncPayload {
   final Map<String, String> settings;
 
   factory ClipboardSyncPayload.fromJsonString(String value) {
+    final String trimmed = value.trim();
+    if (trimmed.startsWith(_bm3Header)) {
+      return _fromBm3String(trimmed);
+    }
+
     final Object? decoded = jsonDecode(value);
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Clipboard payload must be an object.');
     }
-    if (_readInt(decoded['v']) != clipboardSyncPayloadVersion) {
+    if (_readInt(decoded['v']) != 1) {
       throw const FormatException('Unsupported clipboard payload version.');
     }
 
@@ -48,17 +54,149 @@ class ClipboardSyncPayload {
   }
 
   String toJsonString() {
-    final Map<String, dynamic> payload = <String, dynamic>{
-      'v': clipboardSyncPayloadVersion,
-      'u': userId,
-      't': updatedAtEpochMs,
-      'c': favoritesState.collections.map(_collectionToRow).toList(),
-      'e': favoritesState.entries.map(_entryToRow).toList(),
-      'm': favoritesState.memberships.map(_membershipToRow).toList(),
-      's': settings,
-    };
-    return jsonEncode(payload);
+    final List<String> lines = <String>[_bm3Header];
+    final List<String> likedRefs = _itemRefsForCollection(
+      favoritesState,
+      FavoriteCollection.likedCollectionId,
+    );
+    if (likedRefs.isNotEmpty) {
+      lines.add('L:${likedRefs.join(',')}');
+    }
+
+    for (final FavoriteCollection collection in favoritesState.collections) {
+      if (collection.isLikedCollection) {
+        continue;
+      }
+      final String name = collection.name.trim();
+      if (name.isEmpty) {
+        continue;
+      }
+      final List<String> refs = _itemRefsForCollection(
+        favoritesState,
+        collection.id,
+      );
+      if (refs.isEmpty) {
+        continue;
+      }
+      lines.add('P:${_escapeCollectionName(name)}=${refs.join(',')}');
+    }
+
+    return lines.join('\n');
   }
+}
+
+ClipboardSyncPayload _fromBm3String(String value) {
+  final DateTime now = DateTime.now();
+  final Map<String, FavoriteCollection> collections =
+      <String, FavoriteCollection>{
+        FavoriteCollection.likedCollectionId: FavoriteCollection.liked(
+          now: now,
+        ),
+      };
+  final Map<String, FavoriteEntry> entries = <String, FavoriteEntry>{};
+  final Map<String, FavoriteMembership> memberships =
+      <String, FavoriteMembership>{};
+
+  for (final String rawLine in const LineSplitter().convert(value).skip(1)) {
+    final String line = rawLine.trim();
+    if (line.isEmpty) {
+      continue;
+    }
+    if (line.startsWith('L:')) {
+      _addBm3Refs(
+        collectionId: FavoriteCollection.likedCollectionId,
+        refs: _readBm3Refs(line.substring(2)),
+        entries: entries,
+        memberships: memberships,
+        now: now,
+      );
+      continue;
+    }
+    if (line.startsWith('P:')) {
+      final _Bm3PlaylistLine? playlistLine = _parseBm3PlaylistLine(
+        line.substring(2),
+      );
+      if (playlistLine == null) {
+        continue;
+      }
+      final String collectionId = _collectionIdForBm3Name(playlistLine.name);
+      collections[collectionId] = FavoriteCollection(
+        id: collectionId,
+        name: playlistLine.name,
+        createdAt: now,
+        updatedAt: now,
+      );
+      _addBm3Refs(
+        collectionId: collectionId,
+        refs: playlistLine.refs,
+        entries: entries,
+        memberships: memberships,
+        now: now,
+      );
+    }
+  }
+
+  final Set<String> referencedItemIds = memberships.values
+      .map((FavoriteMembership membership) => membership.itemId)
+      .toSet();
+  return ClipboardSyncPayload(
+    userId: '',
+    updatedAtEpochMs: 0,
+    favoritesState: FavoritesState(
+      collections: collections.values.toList(growable: false),
+      entries: entries.values
+          .where(
+            (FavoriteEntry entry) => referencedItemIds.contains(entry.itemId),
+          )
+          .toList(growable: false),
+      memberships: memberships.values.toList(growable: false),
+    ),
+    settings: const <String, String>{},
+  );
+}
+
+void _addBm3Refs({
+  required String collectionId,
+  required List<String> refs,
+  required Map<String, FavoriteEntry> entries,
+  required Map<String, FavoriteMembership> memberships,
+  required DateTime now,
+}) {
+  for (final String ref in refs) {
+    final _DecodedItemRef? decodedRef = _decodeItemRef(ref);
+    if (decodedRef == null) {
+      continue;
+    }
+    entries.putIfAbsent(
+      decodedRef.stableId,
+      () => FavoriteEntry(
+        itemId: decodedRef.stableId,
+        aid: decodedRef.aid ?? 0,
+        bvid: decodedRef.bvid ?? '',
+        title: ref,
+        author: '',
+        coverUrl: '',
+        cid: decodedRef.cid,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final FavoriteMembership membership = FavoriteMembership.create(
+      collectionId: collectionId,
+      itemId: decodedRef.stableId,
+      addedAt: now,
+    );
+    memberships[membership.id] = membership;
+  }
+}
+
+List<String> _itemRefsForCollection(FavoritesState state, String collectionId) {
+  return state
+      .itemsForCollection(collectionId)
+      .map((FavoriteEntry entry) => _encodeItemRef(entry.itemId))
+      .where((String ref) => ref.trim().isNotEmpty)
+      .toSet()
+      .toList(growable: false);
 }
 
 FavoritesState mergeClipboardFavorites({
@@ -67,9 +205,6 @@ FavoritesState mergeClipboardFavorites({
 }) {
   final Map<String, FavoriteCollection> collections =
       <String, FavoriteCollection>{};
-  for (final FavoriteCollection collection in remoteState.collections) {
-    collections[collection.id] = collection;
-  }
   for (final FavoriteCollection collection in localState.collections) {
     collections[collection.id] = collection;
   }
@@ -89,7 +224,18 @@ FavoritesState mergeClipboardFavorites({
   final Map<String, FavoriteMembership> memberships =
       <String, FavoriteMembership>{};
   for (final FavoriteMembership membership in remoteState.memberships) {
-    memberships[membership.id] = membership;
+    final String collectionId = _targetCollectionIdForRemote(
+      remoteCollectionId: membership.collectionId,
+      localCollections: localState.collections,
+      remoteCollections: remoteState.collections,
+      collections: collections,
+    );
+    final FavoriteMembership normalized = FavoriteMembership.create(
+      collectionId: collectionId,
+      itemId: membership.itemId,
+      addedAt: membership.addedAt,
+    );
+    memberships[normalized.id] = normalized;
   }
   for (final FavoriteMembership membership in localState.memberships) {
     memberships[membership.id] = membership;
@@ -102,20 +248,232 @@ FavoritesState mergeClipboardFavorites({
   );
 }
 
-List<dynamic> _collectionToRow(FavoriteCollection collection) {
-  return <dynamic>[
-    collection.id,
-    collection.name,
-    collection.source.name,
-    collection.isSystem ? 1 : 0,
-    collection.remoteId,
-    collection.coverUrl,
-    collection.itemCount,
-    collection.isManagedByApp ? 1 : 0,
-    _epochMs(collection.lastSyncedAt),
-    _epochMs(collection.createdAt),
-    _epochMs(collection.updatedAt),
-  ];
+String _targetCollectionIdForRemote({
+  required String remoteCollectionId,
+  required List<FavoriteCollection> localCollections,
+  required List<FavoriteCollection> remoteCollections,
+  required Map<String, FavoriteCollection> collections,
+}) {
+  if (remoteCollectionId == FavoriteCollection.likedCollectionId) {
+    return FavoriteCollection.likedCollectionId;
+  }
+
+  final FavoriteCollection? remoteCollection = _findCollectionById(
+    remoteCollections,
+    remoteCollectionId,
+  );
+  if (remoteCollection == null) {
+    return remoteCollectionId;
+  }
+  final String normalizedRemoteName = _normalizeCollectionName(
+    remoteCollection.name,
+  );
+  for (final FavoriteCollection localCollection in localCollections) {
+    if (localCollection.isLikedCollection) {
+      continue;
+    }
+    if (_normalizeCollectionName(localCollection.name) ==
+        normalizedRemoteName) {
+      return localCollection.id;
+    }
+  }
+
+  collections.putIfAbsent(remoteCollection.id, () => remoteCollection);
+  return remoteCollection.id;
+}
+
+FavoriteCollection? _findCollectionById(
+  List<FavoriteCollection> collections,
+  String id,
+) {
+  for (final FavoriteCollection collection in collections) {
+    if (collection.id == id) {
+      return collection;
+    }
+  }
+  return null;
+}
+
+String _normalizeCollectionName(String name) {
+  return name.trim();
+}
+
+String _collectionIdForBm3Name(String name) {
+  final String encoded = base64Url
+      .encode(utf8.encode(_normalizeCollectionName(name)))
+      .replaceAll('=', '');
+  return 'sync:$encoded';
+}
+
+String _encodeItemRef(String stableId) {
+  RegExpMatch? match = RegExp(r'^bvid:([^:]+):cid:(\d+)$').firstMatch(stableId);
+  if (match != null) {
+    return '${match.group(1)}#${match.group(2)}';
+  }
+  match = RegExp(r'^bvid:([^:]+)$').firstMatch(stableId);
+  if (match != null) {
+    return match.group(1) ?? '';
+  }
+  match = RegExp(r'^aid:(\d+):cid:(\d+)$').firstMatch(stableId);
+  if (match != null) {
+    return 'av${match.group(1)}#${match.group(2)}';
+  }
+  match = RegExp(r'^aid:(\d+)$').firstMatch(stableId);
+  if (match != null) {
+    return 'av${match.group(1)}';
+  }
+  return stableId;
+}
+
+_DecodedItemRef? _decodeItemRef(String rawRef) {
+  final String ref = rawRef.trim();
+  if (ref.isEmpty) {
+    return null;
+  }
+
+  RegExpMatch? match = RegExp(r'^(BV[^#,\s]+)#(\d+)$').firstMatch(ref);
+  if (match != null) {
+    final String bvid = match.group(1) ?? '';
+    final int cid = int.tryParse(match.group(2) ?? '') ?? 0;
+    if (bvid.isEmpty || cid <= 0) {
+      return null;
+    }
+    return _DecodedItemRef(
+      stableId: 'bvid:$bvid:cid:$cid',
+      bvid: bvid,
+      cid: cid,
+    );
+  }
+
+  match = RegExp(r'^(BV[^#,\s]+)$').firstMatch(ref);
+  if (match != null) {
+    final String bvid = match.group(1) ?? '';
+    return _DecodedItemRef(stableId: 'bvid:$bvid', bvid: bvid);
+  }
+
+  match = RegExp(r'^av(\d+)#(\d+)$').firstMatch(ref);
+  if (match != null) {
+    final int aid = int.tryParse(match.group(1) ?? '') ?? 0;
+    final int cid = int.tryParse(match.group(2) ?? '') ?? 0;
+    if (aid <= 0 || cid <= 0) {
+      return null;
+    }
+    return _DecodedItemRef(stableId: 'aid:$aid:cid:$cid', aid: aid, cid: cid);
+  }
+
+  match = RegExp(r'^av(\d+)$').firstMatch(ref);
+  if (match != null) {
+    final int aid = int.tryParse(match.group(1) ?? '') ?? 0;
+    if (aid <= 0) {
+      return null;
+    }
+    return _DecodedItemRef(stableId: 'aid:$aid', aid: aid);
+  }
+
+  if (ref.startsWith('bvid:') || ref.startsWith('aid:')) {
+    return _DecodedItemRef(stableId: ref);
+  }
+  return null;
+}
+
+List<String> _readBm3Refs(String value) {
+  return value
+      .split(',')
+      .map((String ref) => ref.trim())
+      .where((String ref) => ref.isNotEmpty)
+      .toList(growable: false);
+}
+
+_Bm3PlaylistLine? _parseBm3PlaylistLine(String value) {
+  final int separatorIndex = _firstUnescapedEquals(value);
+  if (separatorIndex < 0) {
+    return null;
+  }
+  final String name = _unescapeCollectionName(
+    value.substring(0, separatorIndex),
+  ).trim();
+  if (name.isEmpty) {
+    return null;
+  }
+  return _Bm3PlaylistLine(
+    name: name,
+    refs: _readBm3Refs(value.substring(separatorIndex + 1)),
+  );
+}
+
+int _firstUnescapedEquals(String value) {
+  bool escaped = false;
+  for (int index = 0; index < value.length; index += 1) {
+    final String char = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char == r'\') {
+      escaped = true;
+      continue;
+    }
+    if (char == '=') {
+      return index;
+    }
+  }
+  return -1;
+}
+
+String _escapeCollectionName(String name) {
+  return name
+      .replaceAll(r'\', r'\\')
+      .replaceAll('\r', '')
+      .replaceAll('\n', r'\n')
+      .replaceAll(',', r'\,')
+      .replaceAll('=', r'\=');
+}
+
+String _unescapeCollectionName(String value) {
+  final StringBuffer buffer = StringBuffer();
+  bool escaped = false;
+  for (int index = 0; index < value.length; index += 1) {
+    final String char = value[index];
+    if (!escaped) {
+      if (char == r'\') {
+        escaped = true;
+      } else {
+        buffer.write(char);
+      }
+      continue;
+    }
+    if (char == 'n') {
+      buffer.write('\n');
+    } else {
+      buffer.write(char);
+    }
+    escaped = false;
+  }
+  if (escaped) {
+    buffer.write(r'\');
+  }
+  return buffer.toString();
+}
+
+class _Bm3PlaylistLine {
+  const _Bm3PlaylistLine({required this.name, required this.refs});
+
+  final String name;
+  final List<String> refs;
+}
+
+class _DecodedItemRef {
+  const _DecodedItemRef({
+    required this.stableId,
+    this.aid,
+    this.bvid,
+    this.cid,
+  });
+
+  final String stableId;
+  final int? aid;
+  final String? bvid;
+  final int? cid;
 }
 
 FavoriteCollection _collectionFromRow(List<dynamic> row) {
@@ -135,24 +493,6 @@ FavoriteCollection _collectionFromRow(List<dynamic> row) {
   );
 }
 
-List<dynamic> _entryToRow(FavoriteEntry entry) {
-  return <dynamic>[
-    entry.itemId,
-    entry.aid,
-    entry.bvid,
-    entry.title,
-    entry.author,
-    entry.coverUrl,
-    entry.ownerMid,
-    entry.cid,
-    entry.page,
-    entry.pageTitle,
-    entry.durationText,
-    _epochMs(entry.createdAt),
-    _epochMs(entry.updatedAt),
-  ];
-}
-
 FavoriteEntry _entryFromRow(List<dynamic> row) {
   final DateTime now = DateTime.now();
   return FavoriteEntry(
@@ -170,15 +510,6 @@ FavoriteEntry _entryFromRow(List<dynamic> row) {
     createdAt: _readNullableDateAt(row, 11) ?? now,
     updatedAt: _readNullableDateAt(row, 12) ?? now,
   );
-}
-
-List<dynamic> _membershipToRow(FavoriteMembership membership) {
-  return <dynamic>[
-    membership.id,
-    membership.collectionId,
-    membership.itemId,
-    _epochMs(membership.addedAt),
-  ];
 }
 
 FavoriteMembership _membershipFromRow(List<dynamic> row) {
@@ -222,10 +553,6 @@ List<List<dynamic>> _readRows(Object? value) {
       .whereType<List<dynamic>>()
       .map((List<dynamic> row) => row)
       .toList(growable: false);
-}
-
-int? _epochMs(DateTime? value) {
-  return value?.millisecondsSinceEpoch;
 }
 
 DateTime? _readNullableDateAt(List<dynamic> row, int index) {

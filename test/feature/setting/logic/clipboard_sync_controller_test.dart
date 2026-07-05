@@ -98,6 +98,7 @@ void main() {
 
     expect(clipboardRepository.loadedNames, <String>['123bilimusic']);
     expect(clipboardRepository.savedNames, <String>['123bilimusic']);
+    expect(clipboardRepository.savedContents.single, startsWith('BM3'));
     expect(
       container
           .read(favoritesControllerProvider)
@@ -159,6 +160,7 @@ void main() {
 
     expect(clipboardRepository.loadedNames, <String>['456bilimusic']);
     expect(clipboardRepository.savedNames, <String>['456bilimusic']);
+    expect(clipboardRepository.savedContents.single, startsWith('BM3'));
     expect(
       container
           .read(favoritesControllerProvider)

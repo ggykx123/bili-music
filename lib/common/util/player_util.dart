@@ -256,6 +256,14 @@ class PlayerUtil {
     }
   }
 
+  static String stripLyricTimingMarks(String line) {
+    return line
+        .replaceAll(RegExp(r'\(\d+(?:,\d+)+\)'), '')
+        .replaceAll(RegExp(r'<\d+(?:,\d+)+>'), '')
+        .replaceAll(RegExp(r'\[\d+(?:,\d+)+\]'), '')
+        .trim();
+  }
+
   static bool _looksLikeLrc(String lyrics) {
     return _lrcPattern.hasMatch(lyrics);
   }

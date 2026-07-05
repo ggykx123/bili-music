@@ -14,4 +14,15 @@ void main() {
       expect(result, rawLyrics);
     });
   });
+
+  group('PlayerUtil.stripLyricTimingMarks', () {
+    test('removes common karaoke word timing marks', () {
+      expect(
+        PlayerUtil.stripLyricTimingMarks(
+          '[0,1000](0,500)歌(500,500,0)词<1000,400,0>',
+        ),
+        '歌词',
+      );
+    });
+  });
 }
