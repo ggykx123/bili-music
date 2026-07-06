@@ -55,7 +55,7 @@ class ClipboardSyncPayload {
   }
 
   String toJsonString() {
-    final List<String> lines = <String>[_bm3Header];
+    final List<String> lines = <String>['$_bm3Header:$updatedAtEpochMs'];
     final List<String> likedRefs = _itemRefsForCollection(
       favoritesState,
       FavoriteCollection.likedCollectionId,
@@ -100,6 +100,10 @@ class ClipboardSyncPayload {
 
 ClipboardSyncPayload _fromBm3String(String value) {
   final DateTime now = DateTime.now();
+  final List<String> lines = const LineSplitter().convert(value);
+  final int updatedAtEpochMs = lines.isEmpty
+      ? 0
+      : _readBm3UpdatedAtEpochMs(lines.first);
   final Map<String, FavoriteCollection> collections =
       <String, FavoriteCollection>{
         FavoriteCollection.likedCollectionId: FavoriteCollection.liked(
@@ -110,7 +114,7 @@ ClipboardSyncPayload _fromBm3String(String value) {
   final Map<String, FavoriteMembership> memberships =
       <String, FavoriteMembership>{};
 
-  for (final String rawLine in const LineSplitter().convert(value).skip(1)) {
+  for (final String rawLine in lines.skip(1)) {
     final String line = rawLine.trim();
     if (line.isEmpty) {
       continue;
@@ -154,7 +158,7 @@ ClipboardSyncPayload _fromBm3String(String value) {
       .toSet();
   return ClipboardSyncPayload(
     userId: '',
-    updatedAtEpochMs: 0,
+    updatedAtEpochMs: updatedAtEpochMs,
     favoritesState: FavoritesState(
       collections: collections.values.toList(growable: false),
       entries: entries.values
@@ -166,6 +170,18 @@ ClipboardSyncPayload _fromBm3String(String value) {
     ),
     settings: const <String, String>{},
   );
+}
+
+int _readBm3UpdatedAtEpochMs(String header) {
+  final String trimmed = header.trim();
+  if (trimmed == _bm3Header) {
+    return 0;
+  }
+  if (!trimmed.startsWith('$_bm3Header:')) {
+    return 0;
+  }
+  final int value = int.tryParse(trimmed.substring(_bm3Header.length + 1)) ?? 0;
+  return value > 0 ? value : 0;
 }
 
 void _addBm3Refs({

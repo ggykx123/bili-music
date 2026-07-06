@@ -78,6 +78,7 @@ class ClipboardSyncController extends _$ClipboardSyncController {
   bool _isApplyingRemoteSnapshot = false;
   String? _activeUserId;
   String? _autoSyncedLoginUserId;
+  int? _lastKnownRemoteUpdatedAtEpochMs;
 
   @override
   ClipboardSyncState build() {
@@ -162,6 +163,7 @@ class ClipboardSyncController extends _$ClipboardSyncController {
 
       final DateTime now = DateTime.now();
       _autoUploadTimer?.cancel();
+      _lastKnownRemoteUpdatedAtEpochMs = mergedPayload.updatedAtEpochMs;
       _lastSnapshotFingerprint = _buildLocalFingerprint();
       state = state.copyWith(
         phase: ClipboardSyncPhase.success,
@@ -261,7 +263,6 @@ class ClipboardSyncController extends _$ClipboardSyncController {
       state = const ClipboardSyncState(message: '登录后才能使用网络剪贴板同步。');
       return;
     }
-    final String content = _buildLocalContent();
     state = state.copyWith(
       phase: ClipboardSyncPhase.uploading,
       clipboardName: clipboardName,
@@ -269,9 +270,26 @@ class ClipboardSyncController extends _$ClipboardSyncController {
     );
 
     try {
+      final ClipboardSyncPayload localPayload = _buildLocalPayload();
+      final String? remoteContent = await ref
+          .read(clipboardSyncRepositoryProvider)
+          .loadContent(clipboardName);
+      final ClipboardSyncPayload? remotePayload = _parseRemotePayload(
+        remoteContent,
+      );
+      if (_isRemoteNewerThanLastKnown(remotePayload)) {
+        state = state.copyWith(
+          phase: ClipboardSyncPhase.failure,
+          clipboardName: clipboardName,
+          message: '上传已取消：远端数据更新，请先同步后再上传。',
+        );
+        return;
+      }
+      final String content = localPayload.toJsonString();
       await ref
           .read(clipboardSyncRepositoryProvider)
           .saveContent(clipboardName: clipboardName, content: content);
+      _lastKnownRemoteUpdatedAtEpochMs = localPayload.updatedAtEpochMs;
       _lastSnapshotFingerprint = _buildLocalFingerprint();
       state = state.copyWith(
         phase: ClipboardSyncPhase.success,
@@ -296,8 +314,13 @@ class ClipboardSyncController extends _$ClipboardSyncController {
     return ClipboardSyncPayload.fromJsonString(trimmed);
   }
 
-  String _buildLocalContent() {
-    return _buildLocalPayload().toJsonString();
+  bool _isRemoteNewerThanLastKnown(ClipboardSyncPayload? remotePayload) {
+    final int remoteUpdatedAt = remotePayload?.updatedAtEpochMs ?? 0;
+    if (remoteUpdatedAt <= 0) {
+      return false;
+    }
+    final int lastKnown = _lastKnownRemoteUpdatedAtEpochMs ?? 0;
+    return remoteUpdatedAt > lastKnown;
   }
 
   String _buildLocalFingerprint() {
@@ -343,6 +366,7 @@ class ClipboardSyncController extends _$ClipboardSyncController {
     if (nextUserId == null) {
       _activeUserId = null;
       _autoSyncedLoginUserId = null;
+      _lastKnownRemoteUpdatedAtEpochMs = null;
       _autoUploadTimer?.cancel();
       _lastSnapshotFingerprint = null;
       state = const ClipboardSyncState(
@@ -356,6 +380,9 @@ class ClipboardSyncController extends _$ClipboardSyncController {
     final bool isDifferentUser =
         _activeUserId != null && _activeUserId != nextUserId;
     _activeUserId = nextUserId;
+    if (isLoginTransition || isDifferentUser) {
+      _lastKnownRemoteUpdatedAtEpochMs = null;
+    }
     state = state.copyWith(clipboardName: _clipboardNameForUserId(nextUserId));
 
     if ((isLoginTransition || isDifferentUser) &&

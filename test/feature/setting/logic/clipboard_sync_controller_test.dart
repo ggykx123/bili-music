@@ -173,6 +173,83 @@ void main() {
       ClipboardSyncPhase.success,
     );
   });
+
+  test('rejects upload when remote snapshot is newer than last sync', () async {
+    final DateTime now = DateTime(2026, 7, 3, 14);
+    clipboardRepository.remoteContent = ClipboardSyncPayload(
+      userId: '789',
+      updatedAtEpochMs: now.millisecondsSinceEpoch,
+      favoritesState: FavoritesState(
+        collections: <FavoriteCollection>[FavoriteCollection.liked(now: now)],
+        entries: <FavoriteEntry>[
+          _entry(itemId: 'bvid:BVbase:cid:11', title: '初始远端歌曲', now: now),
+        ],
+        memberships: <FavoriteMembership>[
+          FavoriteMembership.create(
+            collectionId: FavoriteCollection.likedCollectionId,
+            itemId: 'bvid:BVbase:cid:11',
+            addedAt: now,
+          ),
+        ],
+      ),
+      settings: const <String, String>{},
+    ).toJsonString();
+
+    final ProviderContainer container = ProviderContainer(
+      overrides: [
+        clipboardSyncRepositoryProvider.overrideWithValue(clipboardRepository),
+        biliSessionControllerProvider.overrideWithValue(
+          const BiliSession(
+            sessData: 'sess',
+            biliJct: 'jct',
+            dedeUserId: '789',
+            refreshToken: 'refresh',
+            cookie: 'SESSDATA=sess; DedeUserID=789',
+            mid: 789,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(favoritesControllerProvider.notifier).initialize();
+    container.read(clipboardSyncControllerProvider.notifier).activate();
+    await clipboardRepository.waitForSave();
+    final ClipboardSyncPayload firstSavedPayload =
+        ClipboardSyncPayload.fromJsonString(
+          clipboardRepository.savedContents.single,
+        );
+    clipboardRepository.remoteContent = ClipboardSyncPayload(
+      userId: '789',
+      updatedAtEpochMs: firstSavedPayload.updatedAtEpochMs + 1000,
+      favoritesState: FavoritesState(
+        collections: <FavoriteCollection>[FavoriteCollection.liked(now: now)],
+        entries: <FavoriteEntry>[
+          _entry(itemId: 'bvid:BVnewer:cid:22', title: '更新远端歌曲', now: now),
+        ],
+        memberships: <FavoriteMembership>[
+          FavoriteMembership.create(
+            collectionId: FavoriteCollection.likedCollectionId,
+            itemId: 'bvid:BVnewer:cid:22',
+            addedAt: now,
+          ),
+        ],
+      ),
+      settings: const <String, String>{},
+    ).toJsonString();
+
+    await container.read(clipboardSyncControllerProvider.notifier).uploadNow();
+
+    expect(clipboardRepository.savedContents, hasLength(1));
+    expect(
+      container.read(clipboardSyncControllerProvider).phase,
+      ClipboardSyncPhase.failure,
+    );
+    expect(
+      container.read(clipboardSyncControllerProvider).message,
+      contains('远端数据更新'),
+    );
+  });
 }
 
 void _registerHiveAdapters() {

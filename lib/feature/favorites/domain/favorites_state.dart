@@ -34,7 +34,10 @@ abstract class FavoritesState with _$FavoritesState {
   }
 
   bool isLiked(PlayableItem item) {
-    return likedItemIds.contains(item.stableId);
+    return _containsMatchingItem(
+      collectionId: FavoriteCollection.likedCollectionId,
+      item: item,
+    );
   }
 
   bool isLikedVideoPage({
@@ -85,16 +88,38 @@ abstract class FavoritesState with _$FavoritesState {
     required String collectionId,
     required PlayableItem item,
   }) {
-    return isItemInCollection(
-      collectionId: collectionId,
-      itemId: item.stableId,
-    );
+    return _containsMatchingItem(collectionId: collectionId, item: item);
+  }
+
+  List<FavoriteMembership> membershipsForItemInCollection({
+    required String collectionId,
+    required PlayableItem item,
+  }) {
+    final Map<String, FavoriteEntry> entryMap = <String, FavoriteEntry>{
+      for (final FavoriteEntry entry in entries) entry.itemId: entry,
+    };
+    return memberships
+        .where(
+          (FavoriteMembership membership) =>
+              membership.collectionId == collectionId &&
+              (membership.itemId == item.stableId ||
+                  _favoriteEntryMatchesPlayable(
+                    entryMap[membership.itemId],
+                    item,
+                  )),
+        )
+        .toList(growable: false);
   }
 
   List<FavoriteCollection> collectionsForItem(PlayableItem item) {
+    final Map<String, FavoriteEntry> entryMap = <String, FavoriteEntry>{
+      for (final FavoriteEntry entry in entries) entry.itemId: entry,
+    };
     final Set<String> collectionIds = memberships
         .where(
-          (FavoriteMembership membership) => membership.itemId == item.stableId,
+          (FavoriteMembership membership) =>
+              membership.itemId == item.stableId ||
+              _favoriteEntryMatchesPlayable(entryMap[membership.itemId], item),
         )
         .map((FavoriteMembership membership) => membership.collectionId)
         .toSet();
@@ -134,4 +159,69 @@ abstract class FavoritesState with _$FavoritesState {
         .whereType<FavoriteEntry>()
         .toList(growable: false);
   }
+
+  bool _containsMatchingItem({
+    required String collectionId,
+    required PlayableItem item,
+  }) {
+    final Map<String, FavoriteEntry> entryMap = <String, FavoriteEntry>{
+      for (final FavoriteEntry entry in entries) entry.itemId: entry,
+    };
+    for (final FavoriteMembership membership in memberships) {
+      if (membership.collectionId != collectionId) {
+        continue;
+      }
+      if (membership.itemId == item.stableId) {
+        return true;
+      }
+      if (_favoriteEntryMatchesPlayable(entryMap[membership.itemId], item)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+bool _favoriteEntryMatchesPlayable(FavoriteEntry? entry, PlayableItem item) {
+  if (entry == null) {
+    return false;
+  }
+  if (entry.itemId == item.stableId) {
+    return true;
+  }
+
+  final int? entryCid = entry.cid;
+  final int? itemCid = item.cid;
+  if (entryCid != null && entryCid > 0 && itemCid != null && itemCid > 0) {
+    if (entryCid != itemCid) {
+      return false;
+    }
+    if (entry.bvid.isNotEmpty && item.bvid.isNotEmpty) {
+      return entry.bvid == item.bvid;
+    }
+    if (entry.aid > 0 && item.aid > 0) {
+      return entry.aid == item.aid;
+    }
+    return true;
+  }
+
+  if (entry.bvid.isNotEmpty && item.bvid.isNotEmpty) {
+    if (entry.bvid != item.bvid) {
+      return false;
+    }
+    final int? entryPage = entry.page;
+    final int? itemPage = item.page;
+    return entryPage != null && itemPage != null && entryPage == itemPage;
+  }
+
+  if (entry.aid > 0 && item.aid > 0) {
+    if (entry.aid != item.aid) {
+      return false;
+    }
+    final int? entryPage = entry.page;
+    final int? itemPage = item.page;
+    return entryPage != null && itemPage != null && entryPage == itemPage;
+  }
+
+  return false;
 }

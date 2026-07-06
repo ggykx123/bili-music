@@ -41,13 +41,14 @@ void main() {
       encoded,
     );
 
-    expect(encoded, startsWith('BM3\n'));
+    expect(encoded, startsWith('BM3:${now.millisecondsSinceEpoch}\n'));
     expect(encoded, contains('L:1#11'));
     expect(encoded, isNot(contains('投稿')));
     expect(encoded, isNot(contains('作者')));
     expect(encoded, isNot(contains('cover')));
     expect(encoded, isNot(contains('player.blacklist_entries')));
     expect(decoded.userId, isEmpty);
+    expect(decoded.updatedAtEpochMs, now.millisecondsSinceEpoch);
     expect(decoded.favoritesState.collections, hasLength(1));
     expect(decoded.favoritesState.entries.single.itemId, 'bvid:BV1:cid:11');
     expect(decoded.favoritesState.entries.single.pageTitle, isNull);
@@ -157,6 +158,19 @@ void main() {
       decoded.favoritesState.entries.map((FavoriteEntry entry) => entry.itemId),
       containsAll(<String>['bvid:BV1:cid:11', 'aid:123:cid:456']),
     );
+  });
+
+  test('decodes only listed multipart cids from compact BM3 refs', () {
+    final ClipboardSyncPayload decoded = ClipboardSyncPayload.fromJsonString(
+      'BM3\nL:1az4ceJEhk#101.103',
+    );
+
+    expect(
+      decoded.favoritesState.entries.map((FavoriteEntry entry) => entry.itemId),
+      <String>['bvid:BV1az4ceJEhk:cid:101', 'bvid:BV1az4ceJEhk:cid:103'],
+    );
+    expect(decoded.favoritesState.entries, hasLength(2));
+    expect(decoded.favoritesState.memberships, hasLength(2));
   });
 
   test('groups repeated BV ids and merges same-name playlists', () {

@@ -206,15 +206,18 @@ class FavoritesController extends _$FavoritesController {
 
   Future<bool> toggleLiked(PlayableItem item) async {
     final String itemId = item.stableId;
-    final String membershipId = FavoriteMembership.membershipId(
-      collectionId: FavoriteCollection.likedCollectionId,
-      itemId: itemId,
-    );
     final DateTime now = DateTime.now();
-    final bool isAlreadyLiked = state.likedItemIds.contains(itemId);
+    final List<FavoriteMembership> existingMemberships = state
+        .membershipsForItemInCollection(
+          collectionId: FavoriteCollection.likedCollectionId,
+          item: item,
+        );
+    final bool isAlreadyLiked = existingMemberships.isNotEmpty;
 
     if (isAlreadyLiked) {
-      await _repository.deleteMembership(membershipId);
+      for (final FavoriteMembership membership in existingMemberships) {
+        await _repository.deleteMembership(membership.id);
+      }
       await _repository.saveCollection(
         state.likedCollection.copyWith(updatedAt: now),
       );
@@ -246,9 +249,9 @@ class FavoritesController extends _$FavoritesController {
     for (final PlayableItem item in uniqueItems.values) {
       final String itemId = item.stableId;
       await _upsertEntry(item: item, now: now);
-      if (!state.isItemInCollection(
+      if (!state.containsItemInCollection(
         collectionId: FavoriteCollection.likedCollectionId,
-        itemId: itemId,
+        item: item,
       )) {
         await _repository.saveMembership(
           FavoriteMembership.create(
@@ -286,7 +289,10 @@ class FavoritesController extends _$FavoritesController {
 
     await _upsertEntry(item: item, now: now);
 
-    if (!state.isItemInCollection(collectionId: collectionId, itemId: itemId)) {
+    if (!state.containsItemInCollection(
+      collectionId: collectionId,
+      item: item,
+    )) {
       await _repository.saveMembership(
         FavoriteMembership.create(
           collectionId: collectionId,
@@ -426,9 +432,9 @@ class FavoritesController extends _$FavoritesController {
     for (final PlayableItem item in uniqueItems.values) {
       final String itemId = item.stableId;
       await _upsertEntry(item: item, now: now);
-      if (!state.isItemInCollection(
+      if (!state.containsItemInCollection(
         collectionId: collectionId,
-        itemId: itemId,
+        item: item,
       )) {
         await _repository.saveMembership(
           FavoriteMembership.create(
@@ -455,7 +461,7 @@ class FavoritesController extends _$FavoritesController {
     final List<FavoriteEntry> entries = state.itemsForCollection(collectionId);
     int expandedCount = 0;
     for (final FavoriteEntry entry in entries) {
-      if (entry.cid != null && entry.cid! > 0 && entry.pageTitle != null) {
+      if (entry.cid != null && entry.cid! > 0) {
         continue;
       }
       final List<FavoriteEntry> expandedEntries = await _expandFavoriteEntry(
