@@ -62,7 +62,20 @@ jobs:
           echo '${{ secrets.KEY_PROPERTIES }}' > android/key.properties
           test -s android/app/apr-release-key.jks
           grep -q '^storeFile=' android/key.properties
+          
+      - name: Replace Aliyun Maven repositories with official ones
+        run: |
+          echo "Replacing Aliyun Maven URLs in Gradle files..."
+          # 替换 android/build.gradle 里的阿里云地址
+          find android -name "*.gradle" -o -name "*.gradle.kts" | while read file; do
+            sed -i 's|https://maven.aliyun.com/repository/google|https://maven.google.com|g' "$file"
+            sed -i 's|https://maven.aliyun.com/repository/public|https://repo1.maven.org/maven2|g' "$file"
+            sed -i 's|https://maven.aliyun.com/nexus/content/groups/public|https://repo1.maven.org/maven2|g' "$file"
+          done
+          echo "Done."
 
+      - name: Flutter Pub Get
+        run: flutter pub get
       - name: Build Android Split APKs
         run: flutter build apk --release --split-per-abi --flavor production --obfuscate --split-debug-info=./build/app/intermediates
 
