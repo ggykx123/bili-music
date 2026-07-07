@@ -47,12 +47,15 @@ void main() {
     expect(encoded, isNot(contains('作者')));
     expect(encoded, isNot(contains('cover')));
     expect(encoded, isNot(contains('player.blacklist_entries')));
+    expect(encoded, contains('S:bl=[]'));
     expect(decoded.userId, isEmpty);
     expect(decoded.updatedAtEpochMs, now.millisecondsSinceEpoch);
     expect(decoded.favoritesState.collections, hasLength(1));
     expect(decoded.favoritesState.entries.single.itemId, 'bvid:BV1:cid:11');
     expect(decoded.favoritesState.entries.single.pageTitle, isNull);
-    expect(decoded.settings, isEmpty);
+    expect(decoded.settings, const <String, String>{
+      'player.blacklist_entries': '[]',
+    });
   });
 
   test('escapes playlist names in BM3 payload', () {

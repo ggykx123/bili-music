@@ -5,6 +5,7 @@ import 'package:bilimusic/common/util/toast_util.dart';
 import 'package:bilimusic/common/components/url_text_input.dart';
 import 'package:bilimusic/core/theme/theme_logic.dart';
 import 'package:bilimusic/feature/favorites/logic/favorites_controller.dart';
+import 'package:bilimusic/feature/player/logic/desktop_lyrics_settings_controller.dart';
 import 'package:bilimusic/feature/player/logic/player_audio_quality_preference_logic.dart';
 import 'package:bilimusic/feature/player/logic/player_settings_logic.dart';
 import 'package:bilimusic/feature/setting/data/webdav_repository.dart';
@@ -13,6 +14,7 @@ import 'package:bilimusic/feature/setting/domain/webdav_config.dart';
 import 'package:bilimusic/feature/setting/logic/appearance_setting_logic.dart';
 import 'package:bilimusic/feature/setting/logic/app_transfer_controller.dart';
 import 'package:bilimusic/feature/setting/logic/clipboard_sync_controller.dart';
+import 'package:bilimusic/feature/setting/logic/hotkey_settings_logic.dart';
 import 'package:bilimusic/feature/setting/logic/webdav_logic.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -154,6 +156,34 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
                                   )
                                 : const Icon(Icons.sync_rounded),
                             label: const Text('手动同步'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed:
+                                clipboardSyncState.clipboardName == null ||
+                                    clipboardSyncState.isBusy
+                                ? null
+                                : _handleClipboardForceUploadPressed,
+                            icon: const Icon(Icons.upload_file_rounded),
+                            label: const Text('强制上传'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed:
+                                clipboardSyncState.clipboardName == null ||
+                                    clipboardSyncState.isBusy
+                                ? null
+                                : _handleClipboardForcePullPressed,
+                            icon: const Icon(Icons.download_rounded),
+                            label: const Text('强制拉取'),
                           ),
                         ),
                       ],
@@ -483,6 +513,70 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
     ToastUtil.show(state.message ?? '同步完成');
   }
 
+  Future<void> _handleClipboardForceUploadPressed() async {
+    final bool confirmed =
+        await _confirmClipboardOverwrite(
+          title: '强制上传',
+          content: '将使用本机的喜欢、歌单、黑名单和设置覆盖网络剪贴板中的数据。远端较新的改动会被覆盖。',
+          actionText: '强制上传',
+        ) ??
+        false;
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await ref.read(clipboardSyncControllerProvider.notifier).forceUploadNow();
+    if (!mounted) {
+      return;
+    }
+    final ClipboardSyncState state = ref.read(clipboardSyncControllerProvider);
+    ToastUtil.show(state.message ?? '强制上传完成');
+  }
+
+  Future<void> _handleClipboardForcePullPressed() async {
+    final bool confirmed =
+        await _confirmClipboardOverwrite(
+          title: '强制拉取',
+          content: '将使用网络剪贴板中的数据覆盖本机喜欢、歌单、黑名单和设置。本机未上传的改动会被覆盖。',
+          actionText: '强制拉取',
+        ) ??
+        false;
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await ref.read(clipboardSyncControllerProvider.notifier).forcePullNow();
+    if (!mounted) {
+      return;
+    }
+    final ClipboardSyncState state = ref.read(clipboardSyncControllerProvider);
+    ToastUtil.show(state.message ?? '强制拉取完成');
+  }
+
+  Future<bool?> _confirmClipboardOverwrite({
+    required String title,
+    required String content,
+    required String actionText,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(actionText),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _handleSaveWebDav() async {
     final WebDavConfig config = _buildWebDavConfig();
     if (config.baseUrl.isNotEmpty && !isValidHttpUrl(config.baseUrl)) {
@@ -701,6 +795,8 @@ class _AppTransferPageState extends ConsumerState<AppTransferPage> {
     ref.invalidate(appearanceSettingLogicProvider);
     ref.invalidate(playerSettingsLogicProvider);
     ref.invalidate(playerAudioQualityPreferenceLogicProvider);
+    ref.invalidate(desktopLyricsSettingsControllerProvider);
+    ref.invalidate(hotkeySettingsLogicProvider);
   }
 
   String _clipboardSyncStatusText(ClipboardSyncState state) {

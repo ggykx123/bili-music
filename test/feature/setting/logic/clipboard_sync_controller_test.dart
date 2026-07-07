@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:bilimusic/core/bili/session/bili_session.dart';
@@ -93,12 +92,11 @@ void main() {
             mid: 123,
           ),
         );
-    await clipboardRepository.waitForSave();
+    await _waitForPhase(container, ClipboardSyncPhase.success);
     await Future<void>.delayed(Duration.zero);
 
     expect(clipboardRepository.loadedNames, <String>['123bilimusic']);
-    expect(clipboardRepository.savedNames, <String>['123bilimusic']);
-    expect(clipboardRepository.savedContents.single, startsWith('BM3'));
+    expect(clipboardRepository.savedNames, isEmpty);
     expect(
       container
           .read(favoritesControllerProvider)
@@ -155,12 +153,11 @@ void main() {
 
     await container.read(favoritesControllerProvider.notifier).initialize();
     container.read(clipboardSyncControllerProvider.notifier).activate();
-    await clipboardRepository.waitForSave();
+    await _waitForPhase(container, ClipboardSyncPhase.success);
     await Future<void>.delayed(Duration.zero);
 
     expect(clipboardRepository.loadedNames, <String>['456bilimusic']);
-    expect(clipboardRepository.savedNames, <String>['456bilimusic']);
-    expect(clipboardRepository.savedContents.single, startsWith('BM3'));
+    expect(clipboardRepository.savedNames, isEmpty);
     expect(
       container
           .read(favoritesControllerProvider)
@@ -214,14 +211,10 @@ void main() {
 
     await container.read(favoritesControllerProvider.notifier).initialize();
     container.read(clipboardSyncControllerProvider.notifier).activate();
-    await clipboardRepository.waitForSave();
-    final ClipboardSyncPayload firstSavedPayload =
-        ClipboardSyncPayload.fromJsonString(
-          clipboardRepository.savedContents.single,
-        );
+    await _waitForPhase(container, ClipboardSyncPhase.success);
     clipboardRepository.remoteContent = ClipboardSyncPayload(
       userId: '789',
-      updatedAtEpochMs: firstSavedPayload.updatedAtEpochMs + 1000,
+      updatedAtEpochMs: now.millisecondsSinceEpoch + 1000,
       favoritesState: FavoritesState(
         collections: <FavoriteCollection>[FavoriteCollection.liked(now: now)],
         entries: <FavoriteEntry>[
@@ -240,7 +233,7 @@ void main() {
 
     await container.read(clipboardSyncControllerProvider.notifier).uploadNow();
 
-    expect(clipboardRepository.savedContents, hasLength(1));
+    expect(clipboardRepository.savedContents, isEmpty);
     expect(
       container.read(clipboardSyncControllerProvider).phase,
       ClipboardSyncPhase.failure,
@@ -248,6 +241,252 @@ void main() {
     expect(
       container.read(clipboardSyncControllerProvider).message,
       contains('远端数据更新'),
+    );
+  });
+
+  test(
+    'remote newer snapshot replaces local data and removes stale items',
+    () async {
+      final DateTime now = DateTime(2026, 7, 3, 15);
+      final FavoriteEntry localEntry = _entry(
+        itemId: 'bvid:BVlocal:cid:11',
+        title: '本地旧歌曲',
+        now: now,
+      );
+      final FavoriteEntry remoteEntry = _entry(
+        itemId: 'bvid:BVremote:cid:22',
+        title: '远端新歌曲',
+        now: now.add(const Duration(minutes: 1)),
+      );
+      clipboardRepository.remoteContent = ClipboardSyncPayload(
+        userId: '100',
+        updatedAtEpochMs: now
+            .add(const Duration(minutes: 1))
+            .millisecondsSinceEpoch,
+        favoritesState: _likedState(remoteEntry, now),
+        settings: const <String, String>{},
+      ).toJsonString();
+
+      final ProviderContainer container = ProviderContainer(
+        overrides: [
+          clipboardSyncRepositoryProvider.overrideWithValue(
+            clipboardRepository,
+          ),
+          biliSessionControllerProvider.overrideWithValue(
+            const BiliSession(
+              sessData: 'sess',
+              biliJct: 'jct',
+              dedeUserId: '100',
+              refreshToken: 'refresh',
+              cookie: 'SESSDATA=sess; DedeUserID=100',
+              mid: 100,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(favoritesControllerProvider.notifier).initialize();
+      await container
+          .read(favoritesLocalRepositoryProvider)
+          .replaceAll(_likedState(localEntry, now));
+      await container.read(favoritesControllerProvider.notifier).reload();
+
+      await container.read(clipboardSyncControllerProvider.notifier).syncNow();
+
+      final List<String> itemIds = container
+          .read(favoritesControllerProvider)
+          .entries
+          .map((FavoriteEntry entry) => entry.itemId)
+          .toList(growable: false);
+      expect(itemIds, <String>[remoteEntry.itemId]);
+      expect(clipboardRepository.savedContents, isEmpty);
+    },
+  );
+
+  test(
+    'local newer snapshot uploads instead of pulling stale remote',
+    () async {
+      final DateTime now = DateTime(2026, 7, 3, 16);
+      final FavoriteEntry localEntry = _entry(
+        itemId: 'bvid:BVlocalnew:cid:11',
+        title: '本地新歌曲',
+        now: now.add(const Duration(minutes: 1)),
+      );
+      final FavoriteEntry remoteEntry = _entry(
+        itemId: 'bvid:BVremoteold:cid:22',
+        title: '远端旧歌曲',
+        now: now,
+      );
+      clipboardRepository.remoteContent = ClipboardSyncPayload(
+        userId: '101',
+        updatedAtEpochMs: now.millisecondsSinceEpoch,
+        favoritesState: _likedState(remoteEntry, now),
+        settings: const <String, String>{},
+      ).toJsonString();
+
+      final ProviderContainer container = ProviderContainer(
+        overrides: [
+          clipboardSyncRepositoryProvider.overrideWithValue(
+            clipboardRepository,
+          ),
+          biliSessionControllerProvider.overrideWithValue(
+            const BiliSession(
+              sessData: 'sess',
+              biliJct: 'jct',
+              dedeUserId: '101',
+              refreshToken: 'refresh',
+              cookie: 'SESSDATA=sess; DedeUserID=101',
+              mid: 101,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(favoritesControllerProvider.notifier).initialize();
+      await container
+          .read(favoritesLocalRepositoryProvider)
+          .replaceAll(
+            _likedState(localEntry, now.add(const Duration(minutes: 1))),
+          );
+      await container.read(favoritesControllerProvider.notifier).reload();
+
+      await container.read(clipboardSyncControllerProvider.notifier).syncNow();
+
+      expect(clipboardRepository.savedNames, <String>['101bilimusic']);
+      final ClipboardSyncPayload savedPayload =
+          ClipboardSyncPayload.fromJsonString(
+            clipboardRepository.savedContents.single,
+          );
+      expect(
+        savedPayload.favoritesState.entries.map(
+          (FavoriteEntry entry) => entry.itemId,
+        ),
+        contains(localEntry.itemId),
+      );
+    },
+  );
+
+  test('force pull overwrites newer local data', () async {
+    final DateTime now = DateTime(2026, 7, 3, 17);
+    final FavoriteEntry localEntry = _entry(
+      itemId: 'bvid:BVforceLocal:cid:11',
+      title: '本地歌曲',
+      now: now.add(const Duration(minutes: 1)),
+    );
+    final FavoriteEntry remoteEntry = _entry(
+      itemId: 'bvid:BVforceRemote:cid:22',
+      title: '远端歌曲',
+      now: now,
+    );
+    clipboardRepository.remoteContent = ClipboardSyncPayload(
+      userId: '102',
+      updatedAtEpochMs: now.millisecondsSinceEpoch,
+      favoritesState: _likedState(remoteEntry, now),
+      settings: const <String, String>{},
+    ).toJsonString();
+
+    final ProviderContainer container = ProviderContainer(
+      overrides: [
+        clipboardSyncRepositoryProvider.overrideWithValue(clipboardRepository),
+        biliSessionControllerProvider.overrideWithValue(
+          const BiliSession(
+            sessData: 'sess',
+            biliJct: 'jct',
+            dedeUserId: '102',
+            refreshToken: 'refresh',
+            cookie: 'SESSDATA=sess; DedeUserID=102',
+            mid: 102,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(favoritesControllerProvider.notifier).initialize();
+    await container
+        .read(favoritesLocalRepositoryProvider)
+        .replaceAll(
+          _likedState(localEntry, now.add(const Duration(minutes: 1))),
+        );
+    await container.read(favoritesControllerProvider.notifier).reload();
+
+    await container
+        .read(clipboardSyncControllerProvider.notifier)
+        .forcePullNow();
+
+    expect(
+      container
+          .read(favoritesControllerProvider)
+          .entries
+          .map((FavoriteEntry entry) => entry.itemId),
+      <String>[remoteEntry.itemId],
+    );
+    expect(clipboardRepository.savedContents, isEmpty);
+  });
+
+  test('force upload overwrites newer remote data', () async {
+    final DateTime now = DateTime(2026, 7, 3, 18);
+    final FavoriteEntry localEntry = _entry(
+      itemId: 'bvid:BVforceUpload:cid:11',
+      title: '本地歌曲',
+      now: now,
+    );
+    final FavoriteEntry remoteEntry = _entry(
+      itemId: 'bvid:BVnewRemote:cid:22',
+      title: '远端新歌曲',
+      now: now.add(const Duration(minutes: 1)),
+    );
+    clipboardRepository.remoteContent = ClipboardSyncPayload(
+      userId: '103',
+      updatedAtEpochMs: now
+          .add(const Duration(minutes: 1))
+          .millisecondsSinceEpoch,
+      favoritesState: _likedState(
+        remoteEntry,
+        now.add(const Duration(minutes: 1)),
+      ),
+      settings: const <String, String>{},
+    ).toJsonString();
+
+    final ProviderContainer container = ProviderContainer(
+      overrides: [
+        clipboardSyncRepositoryProvider.overrideWithValue(clipboardRepository),
+        biliSessionControllerProvider.overrideWithValue(
+          const BiliSession(
+            sessData: 'sess',
+            biliJct: 'jct',
+            dedeUserId: '103',
+            refreshToken: 'refresh',
+            cookie: 'SESSDATA=sess; DedeUserID=103',
+            mid: 103,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(favoritesControllerProvider.notifier).initialize();
+    await container
+        .read(favoritesLocalRepositoryProvider)
+        .replaceAll(_likedState(localEntry, now));
+    await container.read(favoritesControllerProvider.notifier).reload();
+
+    await container
+        .read(clipboardSyncControllerProvider.notifier)
+        .forceUploadNow();
+
+    expect(clipboardRepository.savedNames, <String>['103bilimusic']);
+    final ClipboardSyncPayload savedPayload =
+        ClipboardSyncPayload.fromJsonString(
+          clipboardRepository.savedContents.single,
+        );
+    expect(
+      savedPayload.favoritesState.entries.map(
+        (FavoriteEntry entry) => entry.itemId,
+      ),
+      contains(localEntry.itemId),
     );
   });
 }
@@ -287,6 +526,36 @@ FavoriteEntry _entry({
   );
 }
 
+FavoritesState _likedState(FavoriteEntry entry, DateTime now) {
+  return FavoritesState(
+    collections: <FavoriteCollection>[FavoriteCollection.liked(now: now)],
+    entries: <FavoriteEntry>[entry],
+    memberships: <FavoriteMembership>[
+      FavoriteMembership.create(
+        collectionId: FavoriteCollection.likedCollectionId,
+        itemId: entry.itemId,
+        addedAt: now,
+      ),
+    ],
+  );
+}
+
+Future<void> _waitForPhase(
+  ProviderContainer container,
+  ClipboardSyncPhase phase,
+) async {
+  for (int attempt = 0; attempt < 100; attempt += 1) {
+    if (container.read(clipboardSyncControllerProvider).phase == phase) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail(
+    'Timed out waiting for $phase, current: '
+    '${container.read(clipboardSyncControllerProvider).phase}',
+  );
+}
+
 class _FakeClipboardSyncRepository extends ClipboardSyncRepository {
   _FakeClipboardSyncRepository() : super();
 
@@ -294,7 +563,6 @@ class _FakeClipboardSyncRepository extends ClipboardSyncRepository {
   final List<String> loadedNames = <String>[];
   final List<String> savedNames = <String>[];
   final List<String> savedContents = <String>[];
-  final Completer<void> _saveCompleter = Completer<void>();
 
   @override
   Future<String?> loadContent(String clipboardName) async {
@@ -309,10 +577,5 @@ class _FakeClipboardSyncRepository extends ClipboardSyncRepository {
   }) async {
     savedNames.add(clipboardName);
     savedContents.add(content);
-    _saveCompleter.complete();
-  }
-
-  Future<void> waitForSave() {
-    return _saveCompleter.future.timeout(const Duration(seconds: 2));
   }
 }

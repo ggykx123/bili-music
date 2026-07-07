@@ -66,9 +66,22 @@ class AppTransferRepository {
       defaultValue: 'normal',
     ),
     _TransferSettingKey(
+      key: HiveKeys.playerDesktopLyricsEnabled,
+      defaultValue: 'false',
+    ),
+    _TransferSettingKey(
+      key: HiveKeys.playerDesktopLyricsAlwaysOnTop,
+      defaultValue: 'true',
+    ),
+    _TransferSettingKey(
+      key: HiveKeys.playerDesktopLyricsOpacity,
+      defaultValue: '0.86',
+    ),
+    _TransferSettingKey(
       key: HiveKeys.playerBlacklistEntries,
       defaultValue: '[]',
     ),
+    _TransferSettingKey(key: HiveKeys.desktopHotkeys, defaultValue: ''),
   ];
 
   Future<String> buildExportJson() async {

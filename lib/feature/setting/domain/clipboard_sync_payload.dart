@@ -8,6 +8,23 @@ import 'package:bilimusic/feature/favorites/domain/favorites_state.dart';
 
 const int clipboardSyncPayloadVersion = 3;
 const String _bm3Header = 'BM3';
+const Map<String, String> _bm3SettingAliases = <String, String>{
+  'themeMode': 'tm',
+  'themeVariant': 'tv',
+  'lightThemeVariant': 'lt',
+  'app.appearance.use_glass_bar': 'ag',
+  'player.allow_mix_with_others': 'mo',
+  'player.audio_quality_preference': 'aq',
+  'player.multi_part_queue_preference': 'mp',
+  'player.multi_part_tip_shown': 'pt',
+  'player.lyric_font_preference': 'lf',
+  'player.lyric_font_size_preference': 'ls',
+  'player.desktop_lyrics.enabled': 'de',
+  'player.desktop_lyrics.always_on_top': 'dt',
+  'player.desktop_lyrics.opacity': 'do',
+  'player.blacklist_entries': 'bl',
+  'desktop.hotkeys': 'hk',
+};
 
 class ClipboardSyncPayload {
   const ClipboardSyncPayload({
@@ -94,6 +111,11 @@ class ClipboardSyncPayload {
       lines.add('P:${_escapeCollectionName(entry.key)}=${refs.join(',')}');
     }
 
+    final String settingsLine = _encodeBm3Settings(settings);
+    if (settingsLine.isNotEmpty) {
+      lines.add('S:$settingsLine');
+    }
+
     return lines.join('\n');
   }
 }
@@ -113,6 +135,7 @@ ClipboardSyncPayload _fromBm3String(String value) {
   final Map<String, FavoriteEntry> entries = <String, FavoriteEntry>{};
   final Map<String, FavoriteMembership> memberships =
       <String, FavoriteMembership>{};
+  final Map<String, String> settings = <String, String>{};
 
   for (final String rawLine in lines.skip(1)) {
     final String line = rawLine.trim();
@@ -150,6 +173,10 @@ ClipboardSyncPayload _fromBm3String(String value) {
         memberships: memberships,
         now: now,
       );
+      continue;
+    }
+    if (line.startsWith('S:')) {
+      settings.addAll(_decodeBm3Settings(line.substring(2)));
     }
   }
 
@@ -168,7 +195,7 @@ ClipboardSyncPayload _fromBm3String(String value) {
           .toList(growable: false),
       memberships: memberships.values.toList(growable: false),
     ),
-    settings: const <String, String>{},
+    settings: settings,
   );
 }
 
@@ -543,6 +570,108 @@ String _escapeCollectionName(String name) {
 }
 
 String _unescapeCollectionName(String value) {
+  final StringBuffer buffer = StringBuffer();
+  bool escaped = false;
+  for (int index = 0; index < value.length; index += 1) {
+    final String char = value[index];
+    if (!escaped) {
+      if (char == r'\') {
+        escaped = true;
+      } else {
+        buffer.write(char);
+      }
+      continue;
+    }
+    if (char == 'n') {
+      buffer.write('\n');
+    } else {
+      buffer.write(char);
+    }
+    escaped = false;
+  }
+  if (escaped) {
+    buffer.write(r'\');
+  }
+  return buffer.toString();
+}
+
+String _encodeBm3Settings(Map<String, String> settings) {
+  if (settings.isEmpty) {
+    return '';
+  }
+  final List<String> parts = <String>[];
+  for (final MapEntry<String, String> entry in settings.entries) {
+    final String alias = _bm3SettingAliases[entry.key] ?? entry.key;
+    parts.add(
+      '${_escapeSettingToken(alias)}=${_escapeSettingToken(entry.value)}',
+    );
+  }
+  return parts.join(';');
+}
+
+Map<String, String> _decodeBm3Settings(String value) {
+  final Map<String, String> aliasesByValue = <String, String>{
+    for (final MapEntry<String, String> entry in _bm3SettingAliases.entries)
+      entry.value: entry.key,
+  };
+  final Map<String, String> settings = <String, String>{};
+  for (final String part in _splitUnescaped(value, ';')) {
+    if (part.trim().isEmpty) {
+      continue;
+    }
+    final int separatorIndex = _firstUnescapedEquals(part);
+    if (separatorIndex < 0) {
+      continue;
+    }
+    final String rawKey = _unescapeSettingToken(
+      part.substring(0, separatorIndex),
+    );
+    final String key = aliasesByValue[rawKey] ?? rawKey;
+    if (key.trim().isEmpty) {
+      continue;
+    }
+    settings[key] = _unescapeSettingToken(part.substring(separatorIndex + 1));
+  }
+  return settings;
+}
+
+List<String> _splitUnescaped(String value, String separator) {
+  final List<String> parts = <String>[];
+  final StringBuffer buffer = StringBuffer();
+  bool escaped = false;
+  for (int index = 0; index < value.length; index += 1) {
+    final String char = value[index];
+    if (escaped) {
+      buffer.write(char);
+      escaped = false;
+      continue;
+    }
+    if (char == r'\') {
+      buffer.write(char);
+      escaped = true;
+      continue;
+    }
+    if (char == separator) {
+      parts.add(buffer.toString());
+      buffer.clear();
+      continue;
+    }
+    buffer.write(char);
+  }
+  parts.add(buffer.toString());
+  return parts;
+}
+
+String _escapeSettingToken(String value) {
+  return value
+      .replaceAll(r'\', r'\\')
+      .replaceAll('\r', '')
+      .replaceAll('\n', r'\n')
+      .replaceAll(';', r'\;')
+      .replaceAll('=', r'\=');
+}
+
+String _unescapeSettingToken(String value) {
   final StringBuffer buffer = StringBuffer();
   bool escaped = false;
   for (int index = 0; index < value.length; index += 1) {
